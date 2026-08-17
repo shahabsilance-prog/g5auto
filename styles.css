@@ -785,7 +785,7 @@ select.inp{
 .gallery .gcell:hover{ transform:translateY(-2px) scale(1.02); box-shadow:var(--shadow); border-color:var(--border-strong); }
 .gallery .gcell img{ width:100%;height:100%;object-fit:cover; transition:transform .35s var(--easing) }
 .gallery .gcell:hover img{ transform:scale(1.08); }
-.gallery .gadd{ display:grid; place-items:center; border:2px dashed var(--border-strong); color:var(--text-3); font-size:12.5px; font-weight:600; gap:7px; cursor:pointer; transition:all .2s var(--easing); border-radius:14px; }
+.gallery .gadd{ display:grid; place-items:center; border:2px dashed var(--border-strong); color:var(--text-3); font-size:12.5px; font-weight:600; gap:7px; cursor:pointer; transition:all .2s var(--easing); border-radius:14px; min-height:100px; }
 .gallery .gadd:hover{ border-color:var(--brand); color:var(--brand); background:var(--brand-soft); transform:translateY(-2px); }
 .gallery .gadd svg{ width:24px;height:24px }
 .gallery .gcell .rm{ position:absolute; top:8px; right:8px; width:24px;height:24px;border-radius:99px; background:rgba(15,23,42,.8); color:#fff; display:grid;place-items:center; opacity:0; transition:opacity .2s, transform .2s; backdrop-filter:blur(4px); }
@@ -912,6 +912,7 @@ input[type=range]::-moz-range-thumb{ width:18px;height:18px;border:3.5px solid v
 
 /* Premium: glow effect for active items */
 @keyframes glow{ 0%,100%{box-shadow:0 0 0 0 var(--brand-soft)} 50%{box-shadow:0 0 0 6px transparent} }
+@keyframes spin{ from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
 @media (prefers-reduced-motion:reduce){
   *{ animation:none!important; transition:none!important }
@@ -1152,6 +1153,7 @@ input[type=range]::-moz-range-thumb{ width:18px;height:18px;border:3.5px solid v
 .comp-salvage{color:var(--neg)!important;background:rgba(226,59,78,.08)!important;border-color:rgba(226,59,78,.2)!important}
 .comp-note{font-size:10px;color:var(--text-3);line-height:1.4}
 @media(max-width:560px){.comps-grid{grid-template-columns:1fr}}
+@media(max-width:480px){.gallery{grid-template-columns:repeat(2,1fr);gap:8px}.gallery .gcell{border-radius:10px}.gallery .gadd{min-height:80px;font-size:11px}}
 
 /* Auth screen */
 .auth-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px}

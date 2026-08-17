@@ -618,9 +618,11 @@ function renderVehicle(id){
           </div>
         </div></div>
 
-        <div class="card"><div class="card-head"><h3>Photos</h3><div class="spacer"></div><input type="file" id="photoUploadInput" accept="image/*" style="display:none"><button class="btn subtle sm" id="photoUploadBtn" data-vid="${v.id}"><svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Upload Photo</button></div><div class="card-body"><div class="gallery">
+        <div class="card"><div class="card-head"><h3>Photos</h3></div><div class="card-body">
+          <input type="file" id="photoUploadInput" accept="image/*" capture="environment" style="display:none">
+          <div class="gallery">
           ${(v.photos&&v.photos.length)?v.photos.map((p,i)=>`<div class="gcell"><img class="detail-img" data-vid="${v.id}" src="${p}" alt="Photo ${i+1}" onerror="this.onerror=null;this.src='${vehPhoto(v)}'"></div>`).join(''):`<div class="gcell"><img class="detail-img" data-vid="${v.id}" src="${vehPhoto(v)}" alt="${S.vehicleName(v)}"></div>`}
-          <div class="gcell gadd" onclick="App.modalEditVehicle('${v.id}')"><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Add Photo</div>
+          <div class="gcell gadd" id="photoUploadBtn" data-vid="${v.id}"><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Add Photo</div>
         </div></div></div>
 
         <div class="card"><div class="card-head"><h3>Financial Breakdown</h3></div><div class="card-body">
@@ -710,15 +712,18 @@ function mountVehicle(){
   const photoBtn=$('#photoUploadBtn');
   if(photoBtn&&photoInput){
     photoBtn.addEventListener('click',()=>photoInput.click());
+    photoBtn.style.cursor='pointer';
     photoInput.addEventListener('change',async e=>{
       const file=e.target.files[0];
       if(!file) return;
       const vid=photoBtn.dataset.vid;
+      photoBtn.innerHTML='<svg viewBox="0 0 24 24" fill="none" width="20" height="20" style="animation:spin 1s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Uploading...';
+      photoBtn.style.pointerEvents='none';
       try{
         await S.uploadPhoto(vid,file);
         App.toast('Photo uploaded','ok');
         render();
-      }catch(err){ App.toast('Upload failed: '+err.message,'err'); }
+      }catch(err){ App.toast('Upload failed: '+err.message,'err'); photoBtn.innerHTML='<svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Add Photo'; photoBtn.style.pointerEvents=''; }
       photoInput.value='';
     });
   }

@@ -147,7 +147,7 @@ async function addVehicle(data){ const r=await apiFetch('/api/vehicles',{method:
 async function updateVehicle(id,patch){ const r=await apiFetch(`/api/vehicles/${id}`,{method:'PUT',body:JSON.stringify(patch)}); const idx=state.vehicles.findIndex(v=>v.id===id); if(idx>=0) state.vehicles[idx]=r; return r; }
 async function deleteVehicle(id){ await apiFetch(`/api/vehicles/${id}`,{method:'DELETE'}); state.vehicles=state.vehicles.filter(v=>v.id!==id); state.expenses=state.expenses.filter(e=>e.vehicleId!==id); }
 async function sellVehicle(id,data){ const r=await apiFetch(`/api/vehicles/${id}/sell`,{method:'POST',body:JSON.stringify(data)}); const idx=state.vehicles.findIndex(v=>v.id===id); if(idx>=0) state.vehicles[idx]=r; return r; }
-async function uploadPhoto(vehicleId,file){ const fd=new FormData(); fd.append('photo',file); const headers={}; if(authToken) headers['Authorization']='Bearer '+authToken; const res=await fetch(`/api/vehicles/${vehicleId}/photo`,{method:'POST',headers,body:fd}); const r=await res.json(); const idx=state.vehicles.findIndex(v=>v.id===vehicleId); if(idx>=0) state.vehicles[idx].photos=r.photos; return r; }
+async function uploadPhoto(vehicleId,file){ const fd=new FormData(); fd.append('photo',file); const headers={}; if(authToken) headers['Authorization']='Bearer '+authToken; const res=await fetch(`/api/vehicles/${vehicleId}/photo`,{method:'POST',headers,body:fd}); if(!res.ok){const e=await res.json();throw new Error(e.error||'Upload failed');} const r=await res.json(); const idx=state.vehicles.findIndex(v=>v.id===vehicleId); if(idx>=0) state.vehicles[idx].photos=r.photos; return r; }
 function getVehicle(id){ return state.vehicles.find(v=>v.id===id); }
 
 // ---- Expense CRUD (API) ----
