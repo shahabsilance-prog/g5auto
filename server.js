@@ -155,21 +155,26 @@ app.post('/api/vehicles/:id/sell', auth, async (req, res) => {
 
 // ---- Photo upload ----
 app.post('/api/vehicles/:id/photo', auth, upload.single('photo'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file' });
-  const v = await get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
-  if (!v) return res.status(404).json({ error: 'Not found' });
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    const v = await get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+    if (!v) return res.status(404).json({ error: 'Not found' });
 
-  // Upload to Cloudinary
-  const b64 = req.file.buffer.toString('base64');
-  const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-  const result = await cloudinary.uploader.upload(dataURI, { folder: 'g5auto' });
+    // Upload to Cloudinary
+    const b64 = req.file.buffer.toString('base64');
+    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+    const result = await cloudinary.uploader.upload(dataURI, { folder: 'g5auto', upload_preset: 'g5auto' });
 
-  const photos = JSON.parse(v.photos || '[]');
-  const url = result.secure_url;
-  photos.push(url);
-  await run("UPDATE vehicles SET photos=?, updated_at=datetime('now') WHERE id=?", [JSON.stringify(photos), req.params.id]);
-  await logActivity(req.user.id, req.user.username, 'photo_uploaded', 'vehicle', req.params.id, (v.make||'') + ' ' + (v.model||''));
-  res.json({ url, photos });
+    const photos = JSON.parse(v.photos || '[]');
+    const url = result.secure_url;
+    photos.push(url);
+    await run("UPDATE vehicles SET photos=?, updated_at=datetime('now') WHERE id=?", [JSON.stringify(photos), req.params.id]);
+    await logActivity(req.user.id, req.user.username, 'photo_uploaded', 'vehicle', req.params.id, (v.make||'') + ' ' + (v.model||''));
+    res.json({ url, photos });
+  } catch (err) {
+    console.error('Photo upload error:', err.message || err);
+    res.status(500).json({ error: err.message || 'Upload failed' });
+  }
 });
 
 // ---- Expense routes ----
