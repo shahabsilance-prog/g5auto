@@ -1369,7 +1369,8 @@ async function renderActivity(){
    MAIN RENDER + NAVIGATION
    ================================================================ */
 function render(){
-  const el=viewEl(); if(!el) { console.error('viewEl() returned null - #view not found'); return; }
+  console.log('[G5] render() called, currentView:', currentView);
+  const el=viewEl(); if(!el) { console.error('[G5] viewEl() returned null - #view not found'); return; }
   try {
   const html = (() => {
   switch(currentView){
@@ -1573,6 +1574,7 @@ function renderChangePasswordScreen(){
 }
 
 function bootApp(){
+  console.log('[G5] bootApp called, currentUser:', S.currentUser);
   // Clear auth overlay
   const authOverlay=$('#authOverlay'); if(authOverlay) authOverlay.innerHTML='';
 
@@ -1627,8 +1629,9 @@ function bootApp(){
   });
 
   updateUserDisplay();
-  renderNav();
-  render();
+  console.log('[G5] about to renderNav and render');
+  try { renderNav(); } catch(e) { console.error('[G5] renderNav error:', e); }
+  try { render(); console.log('[G5] render complete, #view length:', $('#view')?.innerHTML?.length); } catch(e) { console.error('[G5] render error:', e); }
   renderNotifications();
 }
 
@@ -1649,13 +1652,18 @@ function updateUserDisplay(){
 
 /* ---- Boot ---- */
 function boot(){
+  // Show loading state immediately
+  const view=$('#view');
+  if(view) view.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px"><div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--brand);border-radius:50%;animation:spin 1s linear infinite"></div><div style="color:var(--text-3);font-size:14px">Loading your dashboard...</div></div>';
+
   try {
     S.checkAuth().then(user=>{
+      console.log('[G5] checkAuth resolved, user:', user?.username);
       if(user){
         if(S.mustChangePassword) renderChangePasswordScreen();
         else bootApp();
       } else renderAuthScreen();
-    }).catch(()=>renderAuthScreen());
+    }).catch((e)=>{ console.error('[G5] checkAuth catch:', e); renderAuthScreen(); });
   } catch(e) {
     console.error('Boot error:', e);
     renderAuthScreen();
