@@ -763,6 +763,7 @@ function renderSearch(){
   const years=['',...Array.from({length:27},(_,i)=>String(2027-i))];
   const prices=['','500','1000','2000','3000','5000','7500','10000','15000','20000','25000','30000','40000','50000'];
   const radii=['25','50','75','100','150'];
+  const models=s.make&&s.make!=='any'?(G5_CONFIG.COMMON_MODELS[s.make]||[]):[];
   return `
   <div class="view-pad fade-in">
     <div class="page-head"><div class="page-title">Car Search</div><div class="page-sub">Search ${searchSites.length} marketplaces across the Charlotte, NC area</div></div>
@@ -771,7 +772,7 @@ function renderSearch(){
         <div class="field"><label>Car / Model</label><input class="inp" data-sr="car" value="${s.car}" placeholder="e.g. Accord, Silverado, WRX"></div>
         <div class="grid-form">
           <div class="field"><label>Make</label><select class="inp" data-sr="make">${makes.map(m=>`<option value="${m}"${s.make===m?' selected':''}>${m==='any'?'Any Make':m}</option>`).join('')}</select></div>
-          <div class="field"><label>Model</label><input class="inp" data-sr="model" value="${s.model||''}" placeholder="e.g. Camry, F-150"></div>
+          <div class="field"><label>Model</label><select class="inp" data-sr="model"><option value="">Any Model</option>${models.map(m=>`<option value="${m}"${s.model===m?' selected':''}>${m}</option>`).join('')}</select></div>
           <div class="field"><label>Condition</label><select class="inp" data-sr="condition"><option value="any">Any</option><option value="clean"${s.condition==='clean'?' selected':''}>Clean title</option><option value="salvage"${s.condition==='salvage'?' selected':''}>Salvage</option><option value="rebuilt"${s.condition==='rebuilt'?' selected':''}>Rebuilt</option></select></div>
           <div class="field"><label>Year from</label><select class="inp" data-sr="yearFrom">${years.map(y=>`<option value="${y}"${s.yearFrom===y?' selected':''}>${y||'Any'}</option>`).join('')}</select></div>
           <div class="field"><label>Year to</label><select class="inp" data-sr="yearTo">${years.map(y=>`<option value="${y}"${s.yearTo===y?' selected':''}>${y||'Any'}</option>`).join('')}</select></div>
@@ -801,7 +802,10 @@ function mountSearch(){
   $$('[data-sr]').forEach(el=>{
     el.addEventListener(el.tagName==='SELECT'?'change':'input',e=>{
       const f=e.target.dataset.sr;
-      if(f) searchState[f]=e.target.value;
+      if(f){
+        searchState[f]=e.target.value;
+        if(f==='make'){ searchState.model=''; render(); }
+      }
     });
   });
   $('[data-sr-search]')?.addEventListener('click',()=>{
