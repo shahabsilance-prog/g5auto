@@ -16,7 +16,7 @@ async function apiFetch(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...opts.headers };
   if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20000);
+  const timer = setTimeout(() => controller.abort(), 5000);
   try {
     const res = await fetch(API + path, { ...opts, headers, signal: controller.signal });
     clearTimeout(timer);
@@ -112,6 +112,21 @@ async function loadState(){
     state.businessExpenses = businessExpenses || [];
   } catch(e) { console.error('loadState failed:', e); }
 }
+
+let _syncInterval = null;
+let _onSync = null;
+function startSync(onSync) {
+  _onSync = onSync;
+  if (_syncInterval) clearInterval(_syncInterval);
+  _syncInterval = setInterval(async () => {
+    if (!authToken) return;
+    const prev = JSON.stringify(state);
+    await loadState();
+    const next = JSON.stringify(state);
+    if (prev !== next && _onSync) _onSync();
+  }, 30000);
+}
+function stopSync() { if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; } }
 
 const COST_FIELDS=['repairCost','partsCost','laborCost','transportCost','auctionFees','dealerFees','taxes','registrationCost','advertisingCost','detailingCost','miscCost','otherFees'];
 const EXPENSE_KEYS=Object.keys(EXPENSE_CATEGORIES).filter(k=>k!=='purchase');
@@ -220,6 +235,8 @@ window.Store = {
   // API
   getActivity,getAllActivity,getAnalytics,
   // reset
-  resetAll
+  resetAll,
+  // sync
+  startSync, stopSync
 };
 })();

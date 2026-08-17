@@ -1629,6 +1629,7 @@ function bootApp(){
   renderNav();
   render();
   renderNotifications();
+  S.startSync(() => { renderNav(); render(); });
 }
 
 function updateUserDisplay(){
