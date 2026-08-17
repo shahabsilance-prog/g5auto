@@ -107,12 +107,12 @@ app.post('/api/auth/change-password', auth, async (req, res) => {
 
 // ---- Vehicle routes ----
 app.get('/api/vehicles', auth, async (req, res) => {
-  const rows = await all('SELECT * FROM vehicles WHERE owner_id = ? ORDER BY created_at DESC', [req.user.id]);
+  const rows = await all('SELECT * FROM vehicles ORDER BY created_at DESC', []);
   res.json(rows.map(parseVehicle));
 });
 
 app.get('/api/vehicles/:id', auth, async (req, res) => {
-  const v = await get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+  const v = await get('SELECT * FROM vehicles WHERE id = ?', [req.params.id]);
   if (!v) return res.status(404).json({ error: 'Not found' });
   res.json(parseVehicle(v));
 });
@@ -126,7 +126,7 @@ app.post('/api/vehicles', auth, async (req, res) => {
 });
 
 app.put('/api/vehicles/:id', auth, async (req, res) => {
-  const existing = await get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+  const existing = await get('SELECT * FROM vehicles WHERE id = ?', [req.params.id]);
   if (!existing) return res.status(404).json({ error: 'Not found' });
   const v = buildVehicleUpdate(req.params.id, req.body);
   await run(v.sql, v.params);
@@ -135,7 +135,7 @@ app.put('/api/vehicles/:id', auth, async (req, res) => {
 });
 
 app.delete('/api/vehicles/:id', auth, async (req, res) => {
-  const v = await get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+  const v = await get('SELECT * FROM vehicles WHERE id = ?', [req.params.id]);
   if (!v) return res.status(404).json({ error: 'Not found' });
   await run('DELETE FROM vehicles WHERE id = ?', [req.params.id]);
   await run('DELETE FROM expenses WHERE vehicle_id = ?', [req.params.id]);
@@ -144,7 +144,7 @@ app.delete('/api/vehicles/:id', auth, async (req, res) => {
 });
 
 app.post('/api/vehicles/:id/sell', auth, async (req, res) => {
-  const existing = await get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+  const existing = await get('SELECT * FROM vehicles WHERE id = ?', [req.params.id]);
   if (!existing) return res.status(404).json({ error: 'Not found' });
   const { salePrice, saleDate, sellingFees, buyer } = req.body;
   await run(`UPDATE vehicles SET sale_price=?, sale_date=?, selling_fees=?, buyer=?, status='sold', updated_at=datetime('now') WHERE id=?`,
@@ -157,7 +157,7 @@ app.post('/api/vehicles/:id/sell', auth, async (req, res) => {
 app.post('/api/vehicles/:id/photo', auth, upload.single('photo'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file' });
-    const v = await get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+    const v = await get('SELECT * FROM vehicles WHERE id = ?', [req.params.id]);
     if (!v) return res.status(404).json({ error: 'Not found' });
 
     // Upload to Cloudinary
@@ -179,7 +179,7 @@ app.post('/api/vehicles/:id/photo', auth, upload.single('photo'), async (req, re
 
 // ---- Expense routes ----
 app.get('/api/expenses', auth, async (req, res) => {
-  const rows = await all('SELECT * FROM expenses WHERE owner_id = ? ORDER BY date DESC, created_at DESC', [req.user.id]);
+  const rows = await all('SELECT * FROM expenses ORDER BY date DESC, created_at DESC', []);
   res.json(rows);
 });
 
@@ -193,7 +193,7 @@ app.post('/api/expenses', auth, async (req, res) => {
 });
 
 app.delete('/api/expenses/:id', auth, async (req, res) => {
-  const e = await get('SELECT * FROM expenses WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+  const e = await get('SELECT * FROM expenses WHERE id = ?', [req.params.id]);
   if (!e) return res.status(404).json({ error: 'Not found' });
   await run('DELETE FROM expenses WHERE id = ?', [req.params.id]);
   await logActivity(req.user.id, req.user.username, 'expense_deleted', 'expense', req.params.id, e.category);
@@ -202,7 +202,7 @@ app.delete('/api/expenses/:id', auth, async (req, res) => {
 
 // ---- Watchlist routes ----
 app.get('/api/watchlist', auth, async (req, res) => {
-  res.json(await all('SELECT * FROM watchlist WHERE owner_id = ? ORDER BY created_at DESC', [req.user.id]));
+  res.json(await all('SELECT * FROM watchlist ORDER BY created_at DESC', []));
 });
 
 app.post('/api/watchlist', auth, async (req, res) => {
@@ -215,7 +215,7 @@ app.post('/api/watchlist', auth, async (req, res) => {
 });
 
 app.put('/api/watchlist/:id', auth, async (req, res) => {
-  const w = await get('SELECT * FROM watchlist WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+  const w = await get('SELECT * FROM watchlist WHERE id = ?', [req.params.id]);
   if (!w) return res.status(404).json({ error: 'Not found' });
   const { label, url, askingPrice, estimatedValue, estimatedProfit, seller, location, status } = req.body;
   await run('UPDATE watchlist SET label=?, url=?, asking_price=?, estimated_value=?, estimated_profit=?, seller=?, location=?, status=? WHERE id=?',
@@ -224,7 +224,7 @@ app.put('/api/watchlist/:id', auth, async (req, res) => {
 });
 
 app.delete('/api/watchlist/:id', auth, async (req, res) => {
-  await run('DELETE FROM watchlist WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+  await run('DELETE FROM watchlist WHERE id = ?', [req.params.id]);
   res.json({ ok: true });
 });
 
@@ -241,13 +241,12 @@ app.get('/api/activity/all', auth, async (req, res) => {
 
 // ---- Analytics ----
 app.get('/api/analytics', auth, async (req, res) => {
-  const userId = req.user.id;
-  const totalVehicles = (await get('SELECT COUNT(*) as c FROM vehicles WHERE owner_id = ?', [userId])).c;
-  const totalSold = (await get("SELECT COUNT(*) as c FROM vehicles WHERE owner_id = ? AND status='sold'", [userId])).c;
-  const totalRevenue = (await get("SELECT COALESCE(SUM(sale_price),0) as s FROM vehicles WHERE owner_id = ? AND status='sold'", [userId])).s;
-  const totalInvested = (await get("SELECT COALESCE(SUM(purchase_price + repair_cost + parts_cost + labor_cost + transport_cost + auction_fees + dealer_fees + taxes + registration_cost + advertising_cost + detailing_cost + misc_cost + other_fees),0) as s FROM vehicles WHERE owner_id = ?", [userId])).s;
-  const totalExpenses = (await get("SELECT COALESCE(SUM(amount),0) as s FROM expenses WHERE owner_id = ?", [userId])).s;
-  const totalActions = (await get("SELECT COUNT(*) as c FROM activity_log WHERE user_id = ?", [userId])).c;
+  const totalVehicles = (await get('SELECT COUNT(*) as c FROM vehicles', [])).c;
+  const totalSold = (await get("SELECT COUNT(*) as c FROM vehicles WHERE status='sold'", [])).c;
+  const totalRevenue = (await get("SELECT COALESCE(SUM(sale_price),0) as s FROM vehicles WHERE status='sold'", [])).s;
+  const totalInvested = (await get("SELECT COALESCE(SUM(purchase_price + repair_cost + parts_cost + labor_cost + transport_cost + auction_fees + dealer_fees + taxes + registration_cost + advertising_cost + detailing_cost + misc_cost + other_fees),0) as s FROM vehicles", [])).s;
+  const totalExpenses = (await get("SELECT COALESCE(SUM(amount),0) as s FROM expenses", [])).s;
+  const totalActions = (await get("SELECT COUNT(*) as c FROM activity_log", [])).c;
   const perUser = await all(`
     SELECT u.id, u.username, u.display_name,
       (SELECT COUNT(*) FROM activity_log WHERE user_id = u.id) as actions,
@@ -272,7 +271,7 @@ app.get('*', (req, res) => {
 // ---- Business Expenses routes ----
 app.get('/api/business-expenses', auth, async (req, res) => {
   try {
-    res.json(await all('SELECT * FROM business_expenses WHERE owner_id = ? ORDER BY date DESC, created_at DESC', [req.user.id]));
+    res.json(await all('SELECT * FROM business_expenses ORDER BY date DESC, created_at DESC', []));
   } catch(e) { console.error('business-expenses GET error:', e); res.json([]); }
 });
 
@@ -286,7 +285,7 @@ app.post('/api/business-expenses', auth, async (req, res) => {
 });
 
 app.put('/api/business-expenses/:id', auth, async (req, res) => {
-  const e = await get('SELECT * FROM business_expenses WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+  const e = await get('SELECT * FROM business_expenses WHERE id = ?', [req.params.id]);
   if (!e) return res.status(404).json({ error: 'Not found' });
   const { category, amount, date, description, receipt } = req.body;
   await run('UPDATE business_expenses SET category=?, amount=?, date=?, description=?, receipt=? WHERE id=?',
@@ -295,7 +294,7 @@ app.put('/api/business-expenses/:id', auth, async (req, res) => {
 });
 
 app.delete('/api/business-expenses/:id', auth, async (req, res) => {
-  const e = await get('SELECT * FROM business_expenses WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+  const e = await get('SELECT * FROM business_expenses WHERE id = ?', [req.params.id]);
   if (!e) return res.status(404).json({ error: 'Not found' });
   await run('DELETE FROM business_expenses WHERE id = ?', [req.params.id]);
   await logActivity(req.user.id, req.user.username, 'business_expense_deleted', 'business_expense', req.params.id, e.category);
@@ -307,11 +306,11 @@ app.post('/api/reset', auth, async (req, res) => {
   const { password } = req.body;
   const user = await get('SELECT * FROM users WHERE id = ?', [req.user.id]);
   if (!user || !bcrypt.compareSync(password, user.password_hash)) return res.status(401).json({ error: 'Wrong password' });
-  await run('DELETE FROM vehicles WHERE owner_id = ?', [req.user.id]);
-  await run('DELETE FROM expenses WHERE owner_id = ?', [req.user.id]);
-  await run('DELETE FROM watchlist WHERE owner_id = ?', [req.user.id]);
-  await run('DELETE FROM activity_log WHERE user_id = ?', [req.user.id]);
-  await run('DELETE FROM business_expenses WHERE owner_id = ?', [req.user.id]);
+  await run('DELETE FROM vehicles', []);
+  await run('DELETE FROM expenses', []);
+  await run('DELETE FROM watchlist', []);
+  await run('DELETE FROM activity_log', []);
+  await run('DELETE FROM business_expenses', []);
   await logActivity(req.user.id, req.user.username, 'data_reset', 'user', req.user.id, req.user.username, 'All data cleared');
   res.json({ ok: true });
 });
