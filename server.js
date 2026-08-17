@@ -316,6 +316,11 @@ app.post('/api/reset', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// Health check endpoint (used by UptimeRobot to keep server awake)
+app.get('/health', (req, res) => {
+  res.status(200).json({ ok: true, uptime: process.uptime() });
+});
+
 // Debug: list accounts (remove in production)
 app.get('/api/debug/accounts', async (req, res) => {
   const users = await all('SELECT id, username, display_name, must_change_password FROM users');

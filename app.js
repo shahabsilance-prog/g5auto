@@ -1654,17 +1654,22 @@ function updateUserDisplay(){
 function boot(){
   // Show loading state immediately
   const view=$('#view');
-  if(view) view.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px"><div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--brand);border-radius:50%;animation:spin 1s linear infinite"></div><div style="color:var(--text-3);font-size:14px">Loading your dashboard...</div></div>';
+  if(view) view.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px"><div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--brand);border-radius:50%;animation:spin 1s linear infinite"></div><div style="color:var(--text-3);font-size:14px" id="loadMsg">Waking up server... this takes 30-60s on first load</div></div>';
+
+  // Timeout warning
+  const loadTimer=setTimeout(()=>{ const m=$('#loadMsg'); if(m) m.textContent='Still loading... Render free tier cold starts can take up to 2 minutes'; },15000);
 
   try {
     S.checkAuth().then(user=>{
+      clearTimeout(loadTimer);
       console.log('[G5] checkAuth resolved, user:', user?.username);
       if(user){
         if(S.mustChangePassword) renderChangePasswordScreen();
         else bootApp();
       } else renderAuthScreen();
-    }).catch((e)=>{ console.error('[G5] checkAuth catch:', e); renderAuthScreen(); });
+    }).catch((e)=>{ clearTimeout(loadTimer); console.error('[G5] checkAuth catch:', e); renderAuthScreen(); });
   } catch(e) {
+    clearTimeout(loadTimer);
     console.error('Boot error:', e);
     renderAuthScreen();
   }
