@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>G5 Auto — Used-Car Business OS</title>
+<meta name="description" content="A professional operating system for buying, selling, and managing used-car inventory.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a8f5f'/%3E%3Cpath d='M9 20l2-6h10l2 6M11 20a1.6 1.6 0 1 1-3.2 0 1.6 1.6 0 0 1 3.2 0Zm13 0a1.6 1.6 0 1 1-3.2 0 1.6 1.6 0 0 1 3.2 0Z' stroke='%23fff' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!-- Skip to content for keyboard users -->
+<a href="#view" class="skip-link" id="skipLink">Skip to main content</a>
+
+<!-- Live region for screen reader announcements -->
+<div aria-live="polite" aria-atomic="true" class="sr-only" id="srAnnounce"></div>
+
+<div class="app" id="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+    <button class="collapse-btn" id="collapseBtn" title="Collapse" aria-label="Toggle sidebar">
+      <svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M9 4 5 8l4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+
+    <div class="brand">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 14l1.6-4.2A2 2 0 0 1 8.4 8.5h7.2a2 2 0 0 1 1.8 1.3L19 14M8 14a1.7 1.7 0 1 1-3.4 0A1.7 1.7 0 0 1 8 14Zm12.4 0a1.7 1.7 0 1 1-3.4 0 1.7 1.7 0 0 1 3.4 0Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      </div>
+      <div class="name">G5 AUTO<small>Charlotte · NC</small></div>
+    </div>
+
+    <div class="nav-scroll" id="navScroll" role="navigation" aria-label="Workspace">
+      <div class="nav-section-label"><span>Workspace</span></div>
+      <button class="nav-item" data-view="dashboard" aria-label="Dashboard">
+        <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M4 13h7V4H4v9Zm0 7h7v-5H4v5Zm9 0h7v-9h-7v9Zm0-16v5h7V4h-7Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="lbl">Dashboard</span>
+      </button>
+      <button class="nav-item" data-view="inventory" aria-label="Inventory">
+        <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M5 11l1.3-3.5A2 2 0 0 1 8.2 6h7.6a2 2 0 0 1 1.9 1.5L19 11M4 11h16v5a1 1 0 0 1-1 1h-1M4 11v5a1 1 0 0 0 1 1h1m9-1h2M7 17a1.6 1.6 0 1 1-3.2 0A1.6 1.6 0 0 1 7 17Zm12 0a1.6 1.6 0 1 1-3.2 0A1.6 1.6 0 0 1 19 17Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="lbl">Inventory</span>
+        <span class="count" id="navCountInv">0</span>
+      </button>
+      <button class="nav-item" data-view="search" aria-label="Car Search">
+        <svg class="ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <span class="lbl">Car Search</span>
+      </button>
+      <button class="nav-item" data-view="watchlist" aria-label="Watchlist">
+        <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M12 20s-7-4.6-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.4-7 10-7 10Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="lbl">Watchlist</span>
+        <span class="count" id="navCountWatch">0</span>
+      </button>
+      <div class="nav-section-label"><span>Insights</span></div>
+      <button class="nav-item" data-view="analytics" aria-label="Analytics">
+        <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M3 12h4l2-7 4 14 2-7h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="lbl">Analytics</span>
+      </button>
+      <button class="nav-item" data-view="expenses" aria-label="Expenses">
+        <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M3 7h18M5 7v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7M8 11h8M8 15h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="lbl">Expenses</span>
+      </button>
+      <button class="nav-item" data-view="activity" aria-label="Activity Log">
+        <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="lbl">Activity</span>
+      </button>
+    </div>
+
+    <div class="nav-foot">
+      <div class="user-display">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <div style="min-width:0"><div class="user-name" id="userName">Guest</div><div class="user-role">Dealer</div></div>
+        <button id="logoutBtn" title="Log out">Logout</button>
+      </div>
+      <div class="mini-stat">
+        <span class="sd s-listed"></span>
+        <div class="txt">In inventory<b id="miniInv">$0</b></div>
+      </div>
+      <div class="mini-stat">
+        <span class="sd s-ready"></span>
+        <div class="txt">Lifetime profit<b id="miniProfit" class="pos" style="color:var(--pos)">$0</b></div>
+      </div>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Topbar -->
+    <header class="topbar">
+      <button class="iconbtn menu-toggle" id="menuToggle" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+
+      <div class="searchbar" role="search">
+        <svg class="s-ico" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="m20 20-3.4-3.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <input type="text" id="globalSearch" placeholder="Search vehicles, makes, models, VIN…" autocomplete="off" aria-label="Search vehicles">
+      </div>
+
+      <div class="topbar-spacer"></div>
+
+      <div class="topbar-actions">
+        <button class="btn primary sm" id="quickAdd" title="Add Vehicle  (N)">
+          <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span class="lbl-q">Add Vehicle</span>
+        </button>
+
+        <button class="iconbtn" id="notifBtn" title="Notifications" aria-label="Notifications">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 1 1 12 0c0 4 1.5 5 2 6H4c.5-1 2-2 2-6Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          <span class="badge-dot" id="notifBadge" style="display:none">0</span>
+        </button>
+
+        <button class="iconbtn" id="themeBtn" title="Toggle theme" aria-label="Toggle dark mode">
+          <svg viewBox="0 0 24 24" fill="none" id="themeIcon"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        </button>
+
+        <div class="profile" id="profileBtn">
+          <div class="av">S</div>
+          <div>
+            <div class="nm">Shahab</div>
+            <div class="rl">Owner</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- notifications panel -->
+      <div class="notif-panel" id="notifPanel">
+        <div class="nh">
+          <h4>Alerts</h4>
+          <button class="btn link sm" id="notifClear">Mark all read</button>
+        </div>
+        <div class="nlist" id="notifList"></div>
+      </div>
+    </header>
+
+    <!-- View -->
+    <main class="view-scroll" id="viewScroll" role="main">
+      <div class="view-pad" id="view" tabindex="-1"></div>
+    </main>
+  </div>
+
+  <!-- Mobile bottom nav -->
+  <nav class="bottom-nav" id="bottomNav" aria-label="Mobile navigation">
+    <button class="b-item active" data-view="dashboard">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 13h7V4H4v9Zm0 7h7v-5H4v5Zm9 0h7v-9h-7v9Zm0-16v5h7V4h-7Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Home
+    </button>
+    <button class="b-item" data-view="inventory">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M5 11l1.3-3.5A2 2 0 0 1 8.2 6h7.6a2 2 0 0 1 1.9 1.5L19 11M4 11h16v5a1 1 0 0 1-1 1h-1M4 11v5a1 1 0 0 0 1 1h1m9-1h2M7 17a1.6 1.6 0 1 1-3.2 0A1.6 1.6 0 0 1 7 17Zm12 0a1.6 1.6 0 1 1-3.2 0A1.6 1.6 0 0 1 19 17Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Stock
+    </button>
+    <button class="b-item" data-view="search">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      Search
+    </button>
+    <button class="b-item" data-view="analytics">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l2-7 4 14 2-7h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Stats
+    </button>
+  </nav>
+</div>
+
+<!-- Auth overlay -->
+<div id="authOverlay" class="auth-overlay"></div>
+
+<!-- modal + toast roots -->
+<div class="modal-back" id="modalBack" role="dialog" aria-modal="true" aria-hidden="true"><div id="modalSlot"></div></div>
+<div class="toast-wrap" id="toastWrap" aria-live="polite" aria-relevant="additions"></div>
+
+<script src="config.js"></script>
+<script src="store.js"></script>
+<script src="charts.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

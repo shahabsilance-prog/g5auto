@@ -1,0 +1,6 @@
+node_modules/
+g5auto.db
+g5auto.db-wal
+g5auto.db-shm
+uploads/
+.env
