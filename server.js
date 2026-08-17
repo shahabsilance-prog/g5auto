@@ -230,8 +230,8 @@ app.delete('/api/watchlist/:id', auth, async (req, res) => {
 
 // ---- Activity log ----
 app.get('/api/activity', auth, async (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-  res.json(await all('SELECT * FROM activity_log WHERE user_id = ? ORDER BY created_at DESC LIMIT ?', [req.user.id, limit]));
+  const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+  res.json(await all('SELECT * FROM activity_log ORDER BY created_at DESC LIMIT ?', [limit]));
 });
 
 app.get('/api/activity/all', auth, async (req, res) => {

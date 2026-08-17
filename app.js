@@ -1415,7 +1415,7 @@ async function renderActivity(){
             </div>
             <div class="activity-content">
               <div class="activity-title">${S.esc(a.description||a.action)}</div>
-              <div class="activity-meta">${a.username||'System'} · ${a.createdAt||''}</div>
+              <div class="activity-meta">${a.username||'System'} · ${a.created_at||''}</div>
             </div>
           </div>
         `).join('')}

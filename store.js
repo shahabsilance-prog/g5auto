@@ -116,14 +116,18 @@ async function loadState(){
 
 let _syncInterval = null;
 let _onSync = null;
+let _lastStateHash = '';
 function startSync(onSync) {
   _onSync = onSync;
   if (_syncInterval) clearInterval(_syncInterval);
+  _lastStateHash = JSON.stringify({ v: state.vehicles.length, e: state.expenses.length, w: state.watchlist.length, b: state.businessExpenses.length });
   _syncInterval = setInterval(async () => {
     if (!authToken) return;
+    const prev = JSON.stringify({ v: state.vehicles.length, e: state.expenses.length, w: state.watchlist.length, b: state.businessExpenses.length });
     await loadState();
-    if (_onSync) _onSync();
-  }, 5000);
+    const next = JSON.stringify({ v: state.vehicles.length, e: state.expenses.length, w: state.watchlist.length, b: state.businessExpenses.length });
+    if (prev !== next && _onSync) _onSync();
+  }, 15000);
 }
 function stopSync() { if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; } }
 
