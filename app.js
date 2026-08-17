@@ -138,7 +138,7 @@ function modalVehicleDetails(id){
         </div></section>
         <section class="detail-panel"><div class="panel-title"><span>Investment breakdown</span><span class="panel-total">${S.money(costs.total)}</span></div><div class="cost-list">${rows.map(r=>`<div><span>${r[0]}</span><b>${r[1]}</b></div>`).join('')}<div class="cost-total"><span>All costs</span><b>${S.money(costs.total)}</b></div><div class="cost-total strong"><span>Total investment</span><b>${S.money(ti)}</b></div></div></section>
       </div>
-      <section class="detail-panel notes-panel"><div class="panel-title"><span>Notes & issues</span></div><p>${v.notes||v.damage||'No notes added for this vehicle.'}</p></section>
+      <section class="detail-panel notes-panel"><div class="panel-title"><span>Notes & issues</span></div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${(v.damage||'').split(',').map(t=>t.trim()).filter(Boolean).map(t=>`<span class="tag-chip">${S.esc(t)}</span>`).join('')}</div><p>${v.notes||'No notes added for this vehicle.'}</p></section>
     </div>
     <div class="modal-foot premium-detail-foot"><button class="btn ghost" data-close-modal>Close</button><div class="spacer"></div><button class="btn subtle" id="detailEdit">Edit Vehicle</button>${sold?'':`<button class="btn primary" id="detailSell">Record Sale</button>`}</div>
   </div>`);
@@ -334,7 +334,7 @@ function renderDashboard(){
       <div style="width:80px;height:80px;border-radius:20px;background:var(--brand-soft);display:inline-grid;place-items:center;margin-bottom:20px">
         <svg viewBox="0 0 24 24" fill="none" width="40" height="40"><path d="M5 14l1.6-4.2A2 2 0 0 1 8.4 8.5h7.2a2 2 0 0 1 1.8 1.3L19 14M8 14a1.7 1.7 0 1 1-3.4 0A1.7 1.7 0 0 1 8 14Zm12.4 0a1.7 1.7 0 1 1-3.4 0 1.7 1.7 0 0 1 3.4 0Z" stroke="var(--brand)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
-      <h2 style="font-size:24px;font-weight:800;margin-bottom:8px">Welcome to G5 Auto</h2>
+       <h2 style="font-size:24px;font-weight:800;margin-bottom:8px">Welcome to G4 Auto</h2>
       <p style="color:var(--text-3);font-size:14px;max-width:420px;margin:0 auto 24px;line-height:1.6">Your Charlotte NC used-car business dashboard. Add your first vehicle to start tracking costs, repairs, and profits.</p>
       <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
         <button class="btn primary" onclick="App.modalAddVehicle()" style="font-size:14px;padding:10px 24px">
@@ -613,7 +613,7 @@ function renderVehicle(id){
             <div class="field"><label>Condition</label><div>${v.condition||'—'}</div></div>
             <div class="field"><label>Seller</label><div>${v.seller||'—'}</div></div>
             <div class="field"><label>Location</label><div>${v.location||'—'}</div></div>
-            ${v.damage?`<div class="field col-2"><label>Damage</label><div style="font-size:13px;line-height:1.5">${v.damage}</div></div>`:''}
+            ${v.damage?`<div class="field col-2"><label>Damage</label><div style="display:flex;flex-wrap:wrap;gap:6px">${v.damage.split(',').map(t=>t.trim()).filter(Boolean).map(t=>`<span class="tag-chip">${S.esc(t)}</span>`).join('')}</div></div>`:''}
             ${v.notes?`<div class="field col-2"><label>Notes</label><div style="font-size:13px;line-height:1.5">${v.notes}</div></div>`:''}
           </div>
         </div></div>
@@ -732,7 +732,7 @@ function mountVehicle(){
 /* ================================================================
    VIEW: CAR SEARCH (Lot Finder)
    ================================================================ */
-let searchState={make:'any',car:'',yearFrom:'',yearTo:'',priceMin:'',priceMax:'',condition:'any',clCity:'charlotte',radius:'50'};
+let searchState={make:'any',car:'',model:'',yearFrom:'',yearTo:'',priceMin:'',priceMax:'',condition:'any',clCity:'charlotte',radius:'50'};
 const CLT_AREAS=['charlotte','concord','gastonia','mooresville','huntersville','matthews','monroe','rock-hill','salisbury','asheboro','statesville','lincolnton','shelby','kannapolis','hickory'];
 const searchSites=[
   {name:'Facebook Marketplace',tag:'Local',tier:'direct',detail:'Charlotte metro area — price filters apply',build(ctx){let u=`https://www.facebook.com/marketplace/charlotte/search/?query=${encodeURIComponent(ctx.fullText)}`;if(ctx.priceMin)u+=`&minPrice=${ctx.priceMin}`;if(ctx.priceMax)u+=`&maxPrice=${ctx.priceMax}`;return u;}},
@@ -753,8 +753,9 @@ const searchSites=[
 function searchBuildCtx(){
   const s=searchState;
   const make=s.make==='any'?'':s.make;
-  const parts=[make,s.car,s.yearFrom&&s.yearTo&&s.yearFrom!==s.yearTo?`${s.yearFrom}-${s.yearTo}`:(s.yearFrom||s.yearTo||'')];
-  return{make,car:s.car,fullText:parts.filter(Boolean).join(' '),priceMin:s.priceMin,priceMax:s.priceMax,yearFrom:s.yearFrom,yearTo:s.yearTo,clCity:s.clCity||'charlotte',radius:s.radius||'50'};
+  const model=s.model||'';
+  const parts=[make,model||s.car,s.yearFrom&&s.yearTo&&s.yearFrom!==s.yearTo?`${s.yearFrom}-${s.yearTo}`:(s.yearFrom||s.yearTo||'')];
+  return{make,model,car:s.car,fullText:parts.filter(Boolean).join(' '),priceMin:s.priceMin,priceMax:s.priceMax,yearFrom:s.yearFrom,yearTo:s.yearTo,clCity:s.clCity||'charlotte',radius:s.radius||'50'};
 }
 function renderSearch(){
   const s=searchState, ctx=searchBuildCtx();
@@ -770,6 +771,7 @@ function renderSearch(){
         <div class="field"><label>Car / Model</label><input class="inp" data-sr="car" value="${s.car}" placeholder="e.g. Accord, Silverado, WRX"></div>
         <div class="grid-form">
           <div class="field"><label>Make</label><select class="inp" data-sr="make">${makes.map(m=>`<option value="${m}"${s.make===m?' selected':''}>${m==='any'?'Any Make':m}</option>`).join('')}</select></div>
+          <div class="field"><label>Model</label><input class="inp" data-sr="model" value="${s.model||''}" placeholder="e.g. Camry, F-150"></div>
           <div class="field"><label>Condition</label><select class="inp" data-sr="condition"><option value="any">Any</option><option value="clean"${s.condition==='clean'?' selected':''}>Clean title</option><option value="salvage"${s.condition==='salvage'?' selected':''}>Salvage</option><option value="rebuilt"${s.condition==='rebuilt'?' selected':''}>Rebuilt</option></select></div>
           <div class="field"><label>Year from</label><select class="inp" data-sr="yearFrom">${years.map(y=>`<option value="${y}"${s.yearFrom===y?' selected':''}>${y||'Any'}</option>`).join('')}</select></div>
           <div class="field"><label>Year to</label><select class="inp" data-sr="yearTo">${years.map(y=>`<option value="${y}"${s.yearTo===y?' selected':''}>${y||'Any'}</option>`).join('')}</select></div>
@@ -1075,7 +1077,7 @@ function modalAddVehicle(editV){
     {k:'purchaseDate',l:'Purchase Date',type:'date',col:''},
     {k:'seller',l:'Seller / Source',type:'select',opts:COMMON_SELLERS,col:''},
     {k:'location',l:'Location',type:'select',opts:['Charlotte, NC','Concord, NC','Gastonia, NC','Mooresville, NC','Huntersville, NC','Matthews, NC','Monroe, NC','Rock Hill, SC','Salisbury, NC','Asheboro, NC','Statesville, NC','Lincolnton, NC','Shelby, NC','Kannapolis, NC','Hickory, NC','Other'],col:''},
-    {k:'damage',l:'Damage / Issues',type:'select',opts:DAMAGE_OPTIONS,col:'col-2'},
+    {k:'damage',l:'Damage / Issues',type:'tags',col:'col-2'},
     {k:'notes',l:'Notes',type:'textarea',ph:'Any additional notes…',col:'col-2'}
   ];
   const costFields=[
@@ -1095,7 +1097,7 @@ function modalAddVehicle(editV){
     <div class="modal-body" style="max-height:60vh">
       <h4 style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--text-2)">Vehicle Information</h4>
       <div class="grid-form mb-20">
-        ${fields.map(f=>`<div class="field ${f.col}"><label>${f.l}</label>${f.type==='select'?`<select class="inp" data-veh-f="${f.k}" data-veh-select="${f.k}">${f.opts.map(o=>`<option value="${o}"${v[f.k]===o?' selected':''}>${o}</option>`).join('')}</select>`:f.type==='textarea'?`<textarea class="inp" data-veh-f="${f.k}" placeholder="${f.ph||''}">${v[f.k]||''}</textarea>`:f.type==='date'?`<input class="inp" type="date" data-veh-f="${f.k}" value="${v[f.k]||''}">`:f.money?`<div class="money-wrap"><span class="pre">$</span><input class="inp money" type="number" data-veh-f="${f.k}" value="${v[f.k]||''}" placeholder="${f.ph||''}"></div>`:`<input class="inp" type="${f.type||'text'}" data-veh-f="${f.k}" value="${v[f.k]||''}" placeholder="${f.ph||''}">`}</div>`).join('')}
+        ${fields.map(f=>`<div class="field ${f.col}"><label>${f.l}</label>${f.type==='select'?`<select class="inp" data-veh-f="${f.k}" data-veh-select="${f.k}">${f.opts.map(o=>`<option value="${o}"${v[f.k]===o?' selected':''}>${o}</option>`).join('')}</select>`:f.type==='textarea'?`<textarea class="inp" data-veh-f="${f.k}" placeholder="${f.ph||''}">${v[f.k]||''}</textarea>`:f.type==='date'?`<input class="inp" type="date" data-veh-f="${f.k}" value="${v[f.k]||''}">`:f.type==='tags'?`<div class="tags-input-wrap" data-tags-field="${f.k}"><div class="tags-display">${(v[f.k]||'').split(',').map(t=>t.trim()).filter(Boolean).map(t=>`<span class="tag-chip">${S.esc(t)}<button class="tag-remove" data-tag-val="${S.esc(t)}">&times;</button></span>`).join('')}</div><input class="inp" type="text" data-tags-input="${f.k}" placeholder="Type and press Enter to add…"></div>`:f.money?`<div class="money-wrap"><span class="pre">$</span><input class="inp money" type="number" data-veh-f="${f.k}" value="${v[f.k]||''}" placeholder="${f.ph||''}"></div>`:`<input class="inp" type="${f.type||'text'}" data-veh-f="${f.k}" value="${v[f.k]||''}" placeholder="${f.ph||''}">`}</div>`).join('')}
       </div>
       <h4 style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--text-2)">Costs & Fees</h4>
       <div class="grid-form">
@@ -1110,6 +1112,56 @@ function modalAddVehicle(editV){
   </div>`);
 
   $$('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));
+
+  $$('[data-tags-input]').forEach(input=>{
+    const fieldKey=input.dataset.tagsInput;
+    const wrap=input.closest('.tags-input-wrap');
+    const hiddenInput=wrap?.querySelector(`[data-veh-f="${fieldKey}"]`);
+    if(!wrap||!hiddenInput) return;
+    function updateHidden(){
+      const chips=[...wrap.querySelectorAll('.tag-chip')].map(c=>c.textContent.replace(/×$/,'').trim());
+      hiddenInput.value=chips.join(',');
+    }
+    function addTag(val){
+      const t=val.trim();
+      if(!t) return;
+      const current=hiddenInput.value.split(',').map(s=>s.trim()).filter(Boolean);
+      if(current.includes(t)) return;
+      current.push(t);
+      hiddenInput.value=current.join(',');
+      const display=wrap.querySelector('.tags-display');
+      if(display){
+        display.innerHTML=current.map(d=>`<span class="tag-chip">${S.esc(d)}<button class="tag-remove" data-tag-val="${S.esc(d)}">&times;</button></span>`).join('');
+        display.querySelectorAll('.tag-remove').forEach(btn=>{
+          btn.addEventListener('click',()=>{
+            const val=btn.dataset.tagVal;
+            const arr=hiddenInput.value.split(',').map(s=>s.trim()).filter(Boolean).filter(x=>x!==val);
+            hiddenInput.value=arr.join(',');
+            display.innerHTML=arr.map(d=>`<span class="tag-chip">${S.esc(d)}<button class="tag-remove" data-tag-val="${S.esc(d)}">&times;</button></span>`).join('');
+          });
+        });
+      }
+      input.value='';
+    }
+    input.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){ e.preventDefault(); addTag(input.value); }
+      if(e.key===','||e.key===';'){ e.preventDefault(); addTag(input.value); }
+    });
+    wrap.querySelectorAll('.tag-remove').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const val=btn.dataset.tagVal;
+        const arr=hiddenInput.value.split(',').map(s=>s.trim()).filter(Boolean).filter(x=>x!==val);
+        hiddenInput.value=arr.join(',');
+        const display=wrap.querySelector('.tags-display');
+        if(display){
+          display.innerHTML=arr.map(d=>`<span class="tag-chip">${S.esc(d)}<button class="tag-remove" data-tag-val="${S.esc(d)}">&times;</button></span>`).join('');
+          display.querySelectorAll('.tag-remove').forEach(b2=>{
+            b2.addEventListener('click',arguments.callee);
+          });
+        }
+      });
+    });
+  });
 
   // Dynamic model dropdown based on make selection
   const makeSelect=$('[data-veh-select="make"]');
@@ -1325,11 +1377,15 @@ function modalAddWatch(){
 /* ================================================================
    VIEW: ACTIVITY LOG
    ================================================================ */
+let activityUserFilter='all';
 async function renderActivity(){
   let activities=[];
   try{
     activities=await S.getActivity(100);
   }catch(e){ /* ignore */ }
+  if(activityUserFilter!=='all'){
+    activities=activities.filter(a=>(a.username||'').toLowerCase()===activityUserFilter.toLowerCase());
+  }
   const actionIcons={
     vehicle_added:'M12 5v14M5 12h14',vehicle_updated:'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7',
     vehicle_deleted:'M18 6L6 18M6 6l12 12',vehicle_sold:'M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6',
@@ -1343,9 +1399,13 @@ async function renderActivity(){
     vehicle_sold:'var(--pos)',expense_added:'var(--warn)',expense_deleted:'var(--neg)',
     watchlist_added:'var(--brand)',watchlist_updated:'var(--accent)',photo_uploaded:'var(--text-2)'
   };
+  const userTabs=['All','Shahab','Omar','Neamat','Wahaid'];
   return `
   <div class="view-pad fade-in">
-    <div class="page-head"><div class="page-title">Activity Log</div><div class="spacer"></div><span class="badge neutral">${activities.length} entries</span></div>
+    <div class="page-head"><div class="page-title">Activity Log</div></div>
+    <div class="activity-filter">
+      ${userTabs.map(u=>`<button class="${activityUserFilter===u.toLowerCase()||(activityUserFilter==='all'&&u==='All')?'active':''}" data-act-user="${u.toLowerCase()}">${u}</button>`).join('')}
+    </div>
     ${activities.length?`<div class="card"><div class="card-body">
       <div class="activity-list">
         ${activities.map(a=>`
@@ -1364,6 +1424,14 @@ async function renderActivity(){
     :`<div class="empty-state"><div class="ei"><svg viewBox="0 0 24 24" fill="none"><path d="M12 8v4m0 4h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><h4>No activity yet</h4><p>Actions like adding vehicles, recording sales, and expenses will appear here.</p></div>`}
   </div>`;
 }
+function mountActivity(){
+  $$('[data-act-user]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      activityUserFilter=btn.dataset.actUser;
+      render();
+    });
+  });
+}
 
 /* ================================================================
    MAIN RENDER + NAVIGATION
@@ -1381,7 +1449,7 @@ function render(){
     case 'analytics': return renderAnalytics();
     case 'expenses': return renderExpenses();
     case 'business-expenses': return renderBusinessExpenses();
-    case 'activity': renderActivity().then(html=>{el.innerHTML=html;}).catch(()=>{el.innerHTML='<div class="view-pad"><p>Error loading activity</p></div>';}); return null;
+    case 'activity': renderActivity().then(html=>{el.innerHTML=html;mountActivity();}).catch(()=>{el.innerHTML='<div class="view-pad"><p>Error loading activity</p></div>';}); return null;
     default: return renderDashboard();
   }
   })();
@@ -1514,7 +1582,7 @@ function renderAuthScreen(){
     <div class="auth-logo">
       <svg viewBox="0 0 24 24" fill="none" width="40" height="40"><path d="M5 14l1.6-4.2A2 2 0 0 1 8.4 8.5h7.2a2 2 0 0 1 1.8 1.3L19 14M8 14a1.7 1.7 0 1 1-3.4 0A1.7 1.7 0 0 1 8 14Zm12.4 0a1.7 1.7 0 1 1-3.4 0 1.7 1.7 0 0 1 3.4 0Z" stroke="var(--brand)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
-    <h2 class="auth-title">G5 Auto</h2>
+    <h2 class="auth-title">G4 Auto</h2>
     <p class="auth-sub">Charlotte NC Used-Car Business Dashboard</p>
     <form class="auth-form" id="authLoginForm">
       <div class="field"><label>Username</label><input class="inp" type="text" id="authUser" autocomplete="username" required></div>

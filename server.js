@@ -468,7 +468,7 @@ function buildVehicleUpdate(id, data) {
     { username: 'shahab', displayName: 'Shahab' },
     { username: 'omar', displayName: 'Omar' },
     { username: 'neamat', displayName: 'Neamat' },
-    { username: 'omar2', displayName: 'Omar 2' }
+    { username: 'wahaid', displayName: 'Wahaid' }
   ];
   for (const a of seedAccounts) {
     const existing = await get('SELECT id FROM users WHERE username = ?', [a.username]);
@@ -479,6 +479,6 @@ function buildVehicleUpdate(id, data) {
   }
 
   app.listen(PORT, () => {
-    console.log(`\n  G5 Auto server running at http://localhost:${PORT}\n`);
+    console.log(`\n  G4 Auto server running at http://localhost:${PORT}\n`);
   });
 })();
