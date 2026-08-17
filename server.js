@@ -93,7 +93,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/auth/me', auth, async (req, res) => {
   const user = await get('SELECT id, username, display_name, role, must_change_password, created_at FROM users WHERE id = ?', [req.user.id]);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json({ id: user.id, username: user.username, display_name: user.display_name, role: user.role, mustChangePassword: !!user.must_change_password, created_at: user.created_at });
+  res.json({ id: user.id, username: user.username, displayName: user.display_name, role: user.role, mustChangePassword: !!user.must_change_password, created_at: user.created_at });
 });
 
 app.post('/api/auth/change-password', auth, async (req, res) => {
@@ -271,7 +271,9 @@ app.get('*', (req, res) => {
 
 // ---- Business Expenses routes ----
 app.get('/api/business-expenses', auth, async (req, res) => {
-  res.json(await all('SELECT * FROM business_expenses WHERE owner_id = ? ORDER BY date DESC, created_at DESC', [req.user.id]));
+  try {
+    res.json(await all('SELECT * FROM business_expenses WHERE owner_id = ? ORDER BY date DESC, created_at DESC', [req.user.id]));
+  } catch(e) { console.error('business-expenses GET error:', e); res.json([]); }
 });
 
 app.post('/api/business-expenses', auth, async (req, res) => {

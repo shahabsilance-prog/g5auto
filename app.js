@@ -1634,7 +1634,7 @@ function bootApp(){
 
 function updateUserDisplay(){
   const user=S.currentUser;
-  const name=user?.displayName||user?.username||'Guest';
+  const name=user?.displayName||user?.display_name||user?.username||'Guest';
   const initial=(name)[0].toUpperCase();
   const nameEl=$('#userName');
   const avatarEl=$('#userAvatar');

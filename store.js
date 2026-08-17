@@ -89,17 +89,18 @@ let state = { vehicles:[], expenses:[], watchlist:[], businessExpenses:[], curre
 
 // ---- API-backed CRUD ----
 async function loadState(){
+  const safe = (p) => p.catch(e => { console.warn('loadState endpoint failed:', e.message); return []; });
   try {
     const [vehicles, expenses, watchlist, businessExpenses] = await Promise.all([
-      apiFetch('/api/vehicles'),
-      apiFetch('/api/expenses'),
-      apiFetch('/api/watchlist'),
-      apiFetch('/api/business-expenses')
+      safe(apiFetch('/api/vehicles')),
+      safe(apiFetch('/api/expenses')),
+      safe(apiFetch('/api/watchlist')),
+      safe(apiFetch('/api/business-expenses'))
     ]);
-    state.vehicles = vehicles;
-    state.expenses = expenses;
-    state.watchlist = watchlist;
-    state.businessExpenses = businessExpenses;
+    state.vehicles = vehicles || [];
+    state.expenses = expenses || [];
+    state.watchlist = watchlist || [];
+    state.businessExpenses = businessExpenses || [];
   } catch(e) { console.error('loadState failed:', e); }
 }
 
