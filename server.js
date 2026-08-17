@@ -1,9 +1,9 @@
 /* =====================================================================
    G5 Auto — Express Backend  (server.js)
-   Multi-user API with sql.js (pure WASM SQLite), JWT auth, file uploads
+   Multi-user API with Turso (libSQL), JWT auth, file uploads
    =================================================================== */
 const express = require('express');
-const initSqlJs = require('sql.js');
+const { createClient } = require('@libsql/client');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
@@ -14,7 +14,6 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'g5auto-secret-change-in-production-' + Date.now();
-const DB_PATH = path.join(__dirname, 'g5auto.db');
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -41,51 +40,20 @@ const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 },
 
 let db;
 
-function saveDb() {
-  const data = db.export();
-  const buffer = Buffer.from(data);
-  fs.writeFileSync(DB_PATH, buffer);
+// ---- Database helpers (async for libsql) ----
+async function run(sql, args) {
+  await db.execute({ sql, args: args || [] });
 }
 
-// Auto-save every 5 seconds if dirty
-let dirty = false;
-setInterval(() => { if (dirty) { saveDb(); dirty = false; } }, 5000);
-process.on('exit', () => { if (dirty) saveDb(); });
-process.on('SIGINT', () => { saveDb(); process.exit(); });
-
-function run(sql, params) {
-  db.run(sql, params || []);
-  dirty = true;
+async function get(sql, args) {
+  const result = await db.execute({ sql, args: args || [] });
+  if (result.rows.length === 0) return null;
+  return result.rows[0];
 }
 
-function get(sql, params) {
-  const stmt = db.prepare(sql);
-  stmt.bind(params || []);
-  if (stmt.step()) {
-    const cols = stmt.getColumnNames();
-    const vals = stmt.get();
-    stmt.free();
-    const row = {};
-    cols.forEach((c, i) => { row[c] = vals[i]; });
-    return row;
-  }
-  stmt.free();
-  return null;
-}
-
-function all(sql, params) {
-  const stmt = db.prepare(sql);
-  stmt.bind(params || []);
-  const rows = [];
-  const cols = stmt.getColumnNames();
-  while (stmt.step()) {
-    const vals = stmt.get();
-    const row = {};
-    cols.forEach((c, i) => { row[c] = vals[i]; });
-    rows.push(row);
-  }
-  stmt.free();
-  return rows;
+async function all(sql, args) {
+  const result = await db.execute({ sql, args: args || [] });
+  return result.rows;
 }
 
 // ---- Auth middleware ----
@@ -98,193 +66,181 @@ function auth(req, res, next) {
   } catch { return res.status(401).json({ error: 'Invalid token' }); }
 }
 
-function logActivity(userId, username, action, entityType, entityId, entityName, details) {
-  run(`INSERT INTO activity_log (user_id, username, action, entity_type, entity_id, entity_name, details) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+async function logActivity(userId, username, action, entityType, entityId, entityName, details) {
+  await run(`INSERT INTO activity_log (user_id, username, action, entity_type, entity_id, entity_name, details) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [userId, username, action, entityType || '', entityId || '', entityName || '', details || '']);
 }
 
 // ---- Auth routes ----
-app.post('/api/auth/signup', (req, res) => {
+app.post('/api/auth/signup', async (req, res) => {
   const { username, password, displayName } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
   if (password.length < 4) return res.status(400).json({ error: 'Password must be 4+ characters' });
-  const existing = get('SELECT id FROM users WHERE username = ?', [username]);
+  const existing = await get('SELECT id FROM users WHERE username = ?', [username]);
   if (existing) return res.status(409).json({ error: 'Username already taken' });
   const hash = bcrypt.hashSync(password, 10);
-  run('INSERT INTO users (username, password_hash, display_name) VALUES (?, ?, ?)', [username, hash, displayName || username]);
-  const user = get('SELECT id, username, display_name FROM users WHERE username = ?', [username]);
+  await run('INSERT INTO users (username, password_hash, display_name) VALUES (?, ?, ?)', [username, hash, displayName || username]);
+  const user = await get('SELECT id, username, display_name FROM users WHERE username = ?', [username]);
   const token = jwt.sign({ id: user.id, username, displayName: user.display_name }, JWT_SECRET, { expiresIn: '30d' });
-  saveDb();
   res.json({ token, user: { id: user.id, username, displayName: user.display_name } });
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
-  const user = get('SELECT * FROM users WHERE username = ?', [username]);
+  const user = await get('SELECT * FROM users WHERE username = ?', [username]);
   if (!user || !bcrypt.compareSync(password, user.password_hash)) return res.status(401).json({ error: 'Invalid credentials' });
   const token = jwt.sign({ id: user.id, username: user.username, displayName: user.display_name }, JWT_SECRET, { expiresIn: '30d' });
   res.json({ token, user: { id: user.id, username: user.username, displayName: user.display_name, mustChangePassword: !!user.must_change_password } });
 });
 
-app.get('/api/auth/me', auth, (req, res) => {
-  const user = get('SELECT id, username, display_name, role, must_change_password, created_at FROM users WHERE id = ?', [req.user.id]);
+app.get('/api/auth/me', auth, async (req, res) => {
+  const user = await get('SELECT id, username, display_name, role, must_change_password, created_at FROM users WHERE id = ?', [req.user.id]);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json({ id: user.id, username: user.username, display_name: user.display_name, role: user.role, mustChangePassword: !!user.must_change_password, created_at: user.created_at });
 });
 
-app.post('/api/auth/change-password', auth, (req, res) => {
+app.post('/api/auth/change-password', auth, async (req, res) => {
   const { newPassword } = req.body;
   if (!newPassword || newPassword.length < 4) return res.status(400).json({ error: 'Password must be 4+ characters' });
   const hash = bcrypt.hashSync(newPassword, 10);
-  run('UPDATE users SET password_hash=?, must_change_password=0 WHERE id=?', [hash, req.user.id]);
-  logActivity(req.user.id, req.user.username, 'password_changed', 'user', req.user.id, req.user.username);
-  saveDb();
+  await run('UPDATE users SET password_hash=?, must_change_password=0 WHERE id=?', [hash, req.user.id]);
+  await logActivity(req.user.id, req.user.username, 'password_changed', 'user', req.user.id, req.user.username);
   res.json({ ok: true });
 });
 
 // ---- Vehicle routes ----
-app.get('/api/vehicles', auth, (req, res) => {
-  const rows = all('SELECT * FROM vehicles WHERE owner_id = ? ORDER BY created_at DESC', [req.user.id]);
+app.get('/api/vehicles', auth, async (req, res) => {
+  const rows = await all('SELECT * FROM vehicles WHERE owner_id = ? ORDER BY created_at DESC', [req.user.id]);
   res.json(rows.map(parseVehicle));
 });
 
-app.get('/api/vehicles/:id', auth, (req, res) => {
-  const v = get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+app.get('/api/vehicles/:id', auth, async (req, res) => {
+  const v = await get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
   if (!v) return res.status(404).json({ error: 'Not found' });
   res.json(parseVehicle(v));
 });
 
-app.post('/api/vehicles', auth, (req, res) => {
+app.post('/api/vehicles', auth, async (req, res) => {
   const id = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const v = buildVehicleInsert(id, req.user.id, req.body);
-  run(v.sql, v.params);
-  logActivity(req.user.id, req.user.username, 'vehicle_added', 'vehicle', id, (req.body.make||'') + ' ' + (req.body.model||''), JSON.stringify({ purchasePrice: req.body.purchasePrice }));
-  saveDb();
-  res.json(parseVehicle(get('SELECT * FROM vehicles WHERE id = ?', [id])));
+  await run(v.sql, v.params);
+  await logActivity(req.user.id, req.user.username, 'vehicle_added', 'vehicle', id, (req.body.make||'') + ' ' + (req.body.model||''), JSON.stringify({ purchasePrice: req.body.purchasePrice }));
+  res.json(parseVehicle(await get('SELECT * FROM vehicles WHERE id = ?', [id])));
 });
 
-app.put('/api/vehicles/:id', auth, (req, res) => {
-  const existing = get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+app.put('/api/vehicles/:id', auth, async (req, res) => {
+  const existing = await get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
   if (!existing) return res.status(404).json({ error: 'Not found' });
   const v = buildVehicleUpdate(req.params.id, req.body);
-  run(v.sql, v.params);
-  logActivity(req.user.id, req.user.username, 'vehicle_updated', 'vehicle', req.params.id, (req.body.make||'') + ' ' + (req.body.model||''));
-  saveDb();
-  res.json(parseVehicle(get('SELECT * FROM vehicles WHERE id = ?', [req.params.id])));
+  await run(v.sql, v.params);
+  await logActivity(req.user.id, req.user.username, 'vehicle_updated', 'vehicle', req.params.id, (req.body.make||'') + ' ' + (req.body.model||''));
+  res.json(parseVehicle(await get('SELECT * FROM vehicles WHERE id = ?', [req.params.id])));
 });
 
-app.delete('/api/vehicles/:id', auth, (req, res) => {
-  const v = get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+app.delete('/api/vehicles/:id', auth, async (req, res) => {
+  const v = await get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
   if (!v) return res.status(404).json({ error: 'Not found' });
-  run('DELETE FROM vehicles WHERE id = ?', [req.params.id]);
-  run('DELETE FROM expenses WHERE vehicle_id = ?', [req.params.id]);
-  logActivity(req.user.id, req.user.username, 'vehicle_deleted', 'vehicle', req.params.id, (v.make||'') + ' ' + (v.model||''));
-  saveDb();
+  await run('DELETE FROM vehicles WHERE id = ?', [req.params.id]);
+  await run('DELETE FROM expenses WHERE vehicle_id = ?', [req.params.id]);
+  await logActivity(req.user.id, req.user.username, 'vehicle_deleted', 'vehicle', req.params.id, (v.make||'') + ' ' + (v.model||''));
   res.json({ ok: true });
 });
 
-app.post('/api/vehicles/:id/sell', auth, (req, res) => {
-  const existing = get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+app.post('/api/vehicles/:id/sell', auth, async (req, res) => {
+  const existing = await get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
   if (!existing) return res.status(404).json({ error: 'Not found' });
   const { salePrice, saleDate, sellingFees, buyer } = req.body;
-  run(`UPDATE vehicles SET sale_price=?, sale_date=?, selling_fees=?, buyer=?, status='sold', updated_at=datetime('now') WHERE id=?`,
+  await run(`UPDATE vehicles SET sale_price=?, sale_date=?, selling_fees=?, buyer=?, status='sold', updated_at=datetime('now') WHERE id=?`,
     [salePrice || 0, saleDate || new Date().toISOString().slice(0,10), sellingFees || 0, buyer || '', req.params.id]);
-  logActivity(req.user.id, req.user.username, 'vehicle_sold', 'vehicle', req.params.id, (existing.make||'') + ' ' + (existing.model||''), JSON.stringify({ salePrice }));
-  saveDb();
-  res.json(parseVehicle(get('SELECT * FROM vehicles WHERE id = ?', [req.params.id])));
+  await logActivity(req.user.id, req.user.username, 'vehicle_sold', 'vehicle', req.params.id, (existing.make||'') + ' ' + (existing.model||''), JSON.stringify({ salePrice }));
+  res.json(parseVehicle(await get('SELECT * FROM vehicles WHERE id = ?', [req.params.id])));
 });
 
 // ---- Photo upload ----
-app.post('/api/vehicles/:id/photo', auth, upload.single('photo'), (req, res) => {
+app.post('/api/vehicles/:id/photo', auth, upload.single('photo'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
-  const v = get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+  const v = await get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
   if (!v) return res.status(404).json({ error: 'Not found' });
   const photos = JSON.parse(v.photos || '[]');
   const url = '/uploads/' + req.file.filename;
   photos.push(url);
-  run("UPDATE vehicles SET photos=?, updated_at=datetime('now') WHERE id=?", [JSON.stringify(photos), req.params.id]);
-  logActivity(req.user.id, req.user.username, 'photo_uploaded', 'vehicle', req.params.id, (v.make||'') + ' ' + (v.model||''));
-  saveDb();
+  await run("UPDATE vehicles SET photos=?, updated_at=datetime('now') WHERE id=?", [JSON.stringify(photos), req.params.id]);
+  await logActivity(req.user.id, req.user.username, 'photo_uploaded', 'vehicle', req.params.id, (v.make||'') + ' ' + (v.model||''));
   res.json({ url, photos });
 });
 
 // ---- Expense routes ----
-app.get('/api/expenses', auth, (req, res) => {
-  const rows = all('SELECT * FROM expenses WHERE owner_id = ? ORDER BY date DESC, created_at DESC', [req.user.id]);
+app.get('/api/expenses', auth, async (req, res) => {
+  const rows = await all('SELECT * FROM expenses WHERE owner_id = ? ORDER BY date DESC, created_at DESC', [req.user.id]);
   res.json(rows);
 });
 
-app.post('/api/expenses', auth, (req, res) => {
+app.post('/api/expenses', auth, async (req, res) => {
   const id = 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const { vehicleId, category, amount, date, description } = req.body;
-  run('INSERT INTO expenses (id, owner_id, vehicle_id, category, amount, date, description) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  await run('INSERT INTO expenses (id, owner_id, vehicle_id, category, amount, date, description) VALUES (?, ?, ?, ?, ?, ?, ?)',
     [id, req.user.id, vehicleId || null, category, amount || 0, date || new Date().toISOString().slice(0,10), description || '']);
-  logActivity(req.user.id, req.user.username, 'expense_added', 'expense', id, category, JSON.stringify({ amount, description }));
-  saveDb();
-  res.json(get('SELECT * FROM expenses WHERE id = ?', [id]));
+  await logActivity(req.user.id, req.user.username, 'expense_added', 'expense', id, category, JSON.stringify({ amount, description }));
+  res.json(await get('SELECT * FROM expenses WHERE id = ?', [id]));
 });
 
-app.delete('/api/expenses/:id', auth, (req, res) => {
-  const e = get('SELECT * FROM expenses WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+app.delete('/api/expenses/:id', auth, async (req, res) => {
+  const e = await get('SELECT * FROM expenses WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
   if (!e) return res.status(404).json({ error: 'Not found' });
-  run('DELETE FROM expenses WHERE id = ?', [req.params.id]);
-  logActivity(req.user.id, req.user.username, 'expense_deleted', 'expense', req.params.id, e.category);
-  saveDb();
+  await run('DELETE FROM expenses WHERE id = ?', [req.params.id]);
+  await logActivity(req.user.id, req.user.username, 'expense_deleted', 'expense', req.params.id, e.category);
   res.json({ ok: true });
 });
 
 // ---- Watchlist routes ----
-app.get('/api/watchlist', auth, (req, res) => {
-  res.json(all('SELECT * FROM watchlist WHERE owner_id = ? ORDER BY created_at DESC', [req.user.id]));
+app.get('/api/watchlist', auth, async (req, res) => {
+  res.json(await all('SELECT * FROM watchlist WHERE owner_id = ? ORDER BY created_at DESC', [req.user.id]));
 });
 
-app.post('/api/watchlist', auth, (req, res) => {
+app.post('/api/watchlist', auth, async (req, res) => {
   const id = 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const { label, url, askingPrice, estimatedValue, estimatedProfit, seller, location, status } = req.body;
-  run('INSERT INTO watchlist (id, owner_id, label, url, asking_price, estimated_value, estimated_profit, seller, location, status, date_added) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+  await run('INSERT INTO watchlist (id, owner_id, label, url, asking_price, estimated_value, estimated_profit, seller, location, status, date_added) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
     [id, req.user.id, label||'', url||'', askingPrice||0, estimatedValue||0, estimatedProfit||0, seller||'', location||'', status||'Watching', new Date().toISOString().slice(0,10)]);
-  logActivity(req.user.id, req.user.username, 'watchlist_added', 'watchlist', id, label);
-  saveDb();
-  res.json(get('SELECT * FROM watchlist WHERE id = ?', [id]));
+  await logActivity(req.user.id, req.user.username, 'watchlist_added', 'watchlist', id, label);
+  res.json(await get('SELECT * FROM watchlist WHERE id = ?', [id]));
 });
 
-app.put('/api/watchlist/:id', auth, (req, res) => {
-  const w = get('SELECT * FROM watchlist WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+app.put('/api/watchlist/:id', auth, async (req, res) => {
+  const w = await get('SELECT * FROM watchlist WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
   if (!w) return res.status(404).json({ error: 'Not found' });
   const { label, url, askingPrice, estimatedValue, estimatedProfit, seller, location, status } = req.body;
-  run('UPDATE watchlist SET label=?, url=?, asking_price=?, estimated_value=?, estimated_profit=?, seller=?, location=?, status=? WHERE id=?',
+  await run('UPDATE watchlist SET label=?, url=?, asking_price=?, estimated_value=?, estimated_profit=?, seller=?, location=?, status=? WHERE id=?',
     [label||w.label, url||w.url, askingPrice??w.asking_price, estimatedValue??w.estimated_value, estimatedProfit??w.estimated_profit, seller||w.seller, location||w.location, status||w.status, req.params.id]);
-  saveDb();
-  res.json(get('SELECT * FROM watchlist WHERE id = ?', [req.params.id]));
+  res.json(await get('SELECT * FROM watchlist WHERE id = ?', [req.params.id]));
 });
 
-app.delete('/api/watchlist/:id', auth, (req, res) => {
-  run('DELETE FROM watchlist WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
-  saveDb();
+app.delete('/api/watchlist/:id', auth, async (req, res) => {
+  await run('DELETE FROM watchlist WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
   res.json({ ok: true });
 });
 
 // ---- Activity log ----
-app.get('/api/activity', auth, (req, res) => {
+app.get('/api/activity', auth, async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-  res.json(all('SELECT * FROM activity_log WHERE user_id = ? ORDER BY created_at DESC LIMIT ?', [req.user.id, limit]));
+  res.json(await all('SELECT * FROM activity_log WHERE user_id = ? ORDER BY created_at DESC LIMIT ?', [req.user.id, limit]));
 });
 
-app.get('/api/activity/all', auth, (req, res) => {
+app.get('/api/activity/all', auth, async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 100, 500);
-  res.json(all('SELECT * FROM activity_log ORDER BY created_at DESC LIMIT ?', [limit]));
+  res.json(await all('SELECT * FROM activity_log ORDER BY created_at DESC LIMIT ?', [limit]));
 });
 
 // ---- Analytics ----
-app.get('/api/analytics', auth, (req, res) => {
+app.get('/api/analytics', auth, async (req, res) => {
   const userId = req.user.id;
-  const totalVehicles = get('SELECT COUNT(*) as c FROM vehicles WHERE owner_id = ?', [userId]).c;
-  const totalSold = get("SELECT COUNT(*) as c FROM vehicles WHERE owner_id = ? AND status='sold'", [userId]).c;
-  const totalRevenue = get("SELECT COALESCE(SUM(sale_price),0) as s FROM vehicles WHERE owner_id = ? AND status='sold'", [userId]).s;
-  const totalInvested = get("SELECT COALESCE(SUM(purchase_price + repair_cost + parts_cost + labor_cost + transport_cost + auction_fees + dealer_fees + taxes + registration_cost + advertising_cost + detailing_cost + misc_cost + other_fees),0) as s FROM vehicles WHERE owner_id = ?", [userId]).s;
-  const totalExpenses = get("SELECT COALESCE(SUM(amount),0) as s FROM expenses WHERE owner_id = ?", [userId]).s;
-  const totalActions = get("SELECT COUNT(*) as c FROM activity_log WHERE user_id = ?", [userId]).c;
-  const perUser = all(`
+  const totalVehicles = (await get('SELECT COUNT(*) as c FROM vehicles WHERE owner_id = ?', [userId])).c;
+  const totalSold = (await get("SELECT COUNT(*) as c FROM vehicles WHERE owner_id = ? AND status='sold'", [userId])).c;
+  const totalRevenue = (await get("SELECT COALESCE(SUM(sale_price),0) as s FROM vehicles WHERE owner_id = ? AND status='sold'", [userId])).s;
+  const totalInvested = (await get("SELECT COALESCE(SUM(purchase_price + repair_cost + parts_cost + labor_cost + transport_cost + auction_fees + dealer_fees + taxes + registration_cost + advertising_cost + detailing_cost + misc_cost + other_fees),0) as s FROM vehicles WHERE owner_id = ?", [userId])).s;
+  const totalExpenses = (await get("SELECT COALESCE(SUM(amount),0) as s FROM expenses WHERE owner_id = ?", [userId])).s;
+  const totalActions = (await get("SELECT COUNT(*) as c FROM activity_log WHERE user_id = ?", [userId])).c;
+  const perUser = await all(`
     SELECT u.id, u.username, u.display_name,
       (SELECT COUNT(*) FROM activity_log WHERE user_id = u.id) as actions,
       (SELECT COUNT(*) FROM vehicles WHERE owner_id = u.id) as vehicles,
@@ -306,8 +262,8 @@ app.get('*', (req, res) => {
 });
 
 // Debug: list accounts (remove in production)
-app.get('/api/debug/accounts', (req, res) => {
-  const users = all('SELECT id, username, display_name, must_change_password FROM users');
+app.get('/api/debug/accounts', async (req, res) => {
+  const users = await all('SELECT id, username, display_name, must_change_password FROM users');
   res.json(users);
 });
 
@@ -368,19 +324,14 @@ function buildVehicleUpdate(id, data) {
 
 // ---- Boot ----
 (async () => {
-  const SQL = await initSqlJs();
-  const dbExists = fs.existsSync(DB_PATH);
-  if (dbExists) {
-    const fileBuffer = fs.readFileSync(DB_PATH);
-    db = new SQL.Database(fileBuffer);
-  } else {
-    db = new SQL.Database();
-  }
+  // Connect to Turso
+  db = createClient({
+    url: process.env.TURSO_DATABASE_URL || 'file:g5auto.db',
+    authToken: process.env.TURSO_AUTH_TOKEN || undefined,
+  });
 
-  db.run('PRAGMA journal_mode = WAL');
-  db.run('PRAGMA foreign_keys = ON');
-
-  db.run(`CREATE TABLE IF NOT EXISTS users (
+  // Create tables
+  await db.execute(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
@@ -390,23 +341,7 @@ function buildVehicleUpdate(id, data) {
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
-  // Seed default accounts (password: 1234, must change on first login)
-  const seedHash = bcrypt.hashSync('1234', 10);
-  const seedAccounts = [
-    { username: 'shahab', displayName: 'Shahab' },
-    { username: 'omar', displayName: 'Omar' },
-    { username: 'neamat', displayName: 'Neamat' },
-    { username: 'omar2', displayName: 'Omar 2' }
-  ];
-  for (const a of seedAccounts) {
-    const existing = get('SELECT id FROM users WHERE username = ?', [a.username]);
-    if (!existing) {
-      run('INSERT INTO users (username, password_hash, display_name, must_change_password) VALUES (?, ?, ?, 1)',
-        [a.username, seedHash, a.displayName]);
-    }
-  }
-  saveDb();
-  db.run(`CREATE TABLE IF NOT EXISTS vehicles (
+  await db.execute(`CREATE TABLE IF NOT EXISTS vehicles (
     id TEXT PRIMARY KEY,
     owner_id INTEGER NOT NULL,
     make TEXT DEFAULT '', model TEXT DEFAULT '', trim TEXT DEFAULT '',
@@ -428,7 +363,8 @@ function buildVehicleUpdate(id, data) {
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
   )`);
-  db.run(`CREATE TABLE IF NOT EXISTS expenses (
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS expenses (
     id TEXT PRIMARY KEY,
     owner_id INTEGER NOT NULL,
     vehicle_id TEXT,
@@ -437,7 +373,8 @@ function buildVehicleUpdate(id, data) {
     description TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now'))
   )`);
-  db.run(`CREATE TABLE IF NOT EXISTS watchlist (
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS watchlist (
     id TEXT PRIMARY KEY,
     owner_id INTEGER NOT NULL,
     label TEXT DEFAULT '', url TEXT DEFAULT '',
@@ -447,7 +384,8 @@ function buildVehicleUpdate(id, data) {
     date_added TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   )`);
-  db.run(`CREATE TABLE IF NOT EXISTS activity_log (
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS activity_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     username TEXT NOT NULL,
@@ -457,7 +395,21 @@ function buildVehicleUpdate(id, data) {
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
-  saveDb();
+  // Seed default accounts (password: 1234, must change on first login)
+  const seedHash = bcrypt.hashSync('1234', 10);
+  const seedAccounts = [
+    { username: 'shahab', displayName: 'Shahab' },
+    { username: 'omar', displayName: 'Omar' },
+    { username: 'neamat', displayName: 'Neamat' },
+    { username: 'omar2', displayName: 'Omar 2' }
+  ];
+  for (const a of seedAccounts) {
+    const existing = await get('SELECT id FROM users WHERE username = ?', [a.username]);
+    if (!existing) {
+      await run('INSERT INTO users (username, password_hash, display_name, must_change_password) VALUES (?, ?, ?, 1)',
+        [a.username, seedHash, a.displayName]);
+    }
+  }
 
   app.listen(PORT, () => {
     console.log(`\n  G5 Auto server running at http://localhost:${PORT}\n`);
