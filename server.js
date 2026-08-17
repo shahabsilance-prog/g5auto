@@ -4,6 +4,7 @@
    =================================================================== */
 const express = require('express');
 const { createClient } = require('@libsql/client');
+const { v2: cloudinary } = require('cloudinary');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
@@ -14,24 +15,20 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'g5auto-secret-change-in-production-' + Date.now();
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
-
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use('/uploads', express.static(UPLOAD_DIR));
 app.use(express.static(__dirname));
 
-// ---- File upload config ----
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname) || '.jpg';
-    cb(null, `veh_${Date.now()}_${Math.random().toString(36).slice(2,8)}${ext}`);
-  }
+// ---- Cloudinary config ----
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
-const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 },
+
+// ---- File upload config (memory buffer for Cloudinary) ----
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
     else cb(new Error('Only images allowed'));
@@ -161,8 +158,14 @@ app.post('/api/vehicles/:id/photo', auth, upload.single('photo'), async (req, re
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const v = await get('SELECT * FROM vehicles WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
   if (!v) return res.status(404).json({ error: 'Not found' });
+
+  // Upload to Cloudinary
+  const b64 = req.file.buffer.toString('base64');
+  const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+  const result = await cloudinary.uploader.upload(dataURI, { folder: 'g5auto' });
+
   const photos = JSON.parse(v.photos || '[]');
-  const url = '/uploads/' + req.file.filename;
+  const url = result.secure_url;
   photos.push(url);
   await run("UPDATE vehicles SET photos=?, updated_at=datetime('now') WHERE id=?", [JSON.stringify(photos), req.params.id]);
   await logActivity(req.user.id, req.user.username, 'photo_uploaded', 'vehicle', req.params.id, (v.make||'') + ' ' + (v.model||''));
