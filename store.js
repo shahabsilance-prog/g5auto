@@ -16,7 +16,7 @@ async function apiFetch(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...opts.headers };
   if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 5000);
+  const timer = setTimeout(() => controller.abort(), 1000);
   try {
     const res = await fetch(API + path, { ...opts, headers, signal: controller.signal });
     clearTimeout(timer);
@@ -166,7 +166,7 @@ function generateAlerts(){const a=[];state.vehicles.forEach(v=>{const d=daysInIn
 async function login(username,password){ const r=await apiFetch('/api/auth/login',{method:'POST',body:JSON.stringify({username,password})}); authToken=r.token; currentUser=r.user; mustChangePassword=!!r.user.mustChangePassword; localStorage.setItem('g5_token',r.token); if(!mustChangePassword) await loadState(); return r.user; }
 async function signup(username,password,displayName){ const r=await apiFetch('/api/auth/signup',{method:'POST',body:JSON.stringify({username,password,displayName})}); authToken=r.token; currentUser=r.user; mustChangePassword=false; localStorage.setItem('g5_token',r.token); await loadState(); return r.user; }
 function logout(){ authToken=null; currentUser=null; mustChangePassword=false; localStorage.removeItem('g5_token'); state={vehicles:[],expenses:[],watchlist:[],businessExpenses:[],currentUser:null}; }
-async function checkAuth(){ if(!authToken) return null; for(let attempt=0; attempt<2; attempt++){ try { currentUser=await apiFetch('/api/auth/me'); mustChangePassword=!!currentUser.mustChangePassword; if(!mustChangePassword) await loadState(); return currentUser; } catch(e){ if(attempt===0 && e.message.includes('starting up')){ await new Promise(r=>setTimeout(r,3000)); continue; } logout(); return null; } } }
+async function checkAuth(){ if(!authToken) return null; for(let attempt=0; attempt<2; attempt++){ try { currentUser=await apiFetch('/api/auth/me'); mustChangePassword=!!currentUser.mustChangePassword; if(!mustChangePassword) await loadState(); return currentUser; } catch(e){ if(attempt===0 && e.message.includes('starting up')){         await new Promise(r=>setTimeout(r,1000)); continue; } logout(); return null; } } }
 async function changePassword(newPassword){ await apiFetch('/api/auth/change-password',{method:'POST',body:JSON.stringify({newPassword})}); mustChangePassword=false; currentUser.mustChangePassword=false; await loadState(); }
 
 // ---- Vehicle CRUD (API) ----
