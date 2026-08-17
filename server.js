@@ -390,81 +390,78 @@ function buildVehicleUpdate(id, data) {
     authToken: process.env.TURSO_AUTH_TOKEN || undefined,
   });
 
-  // Create tables
-  await db.execute(`CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    display_name TEXT NOT NULL,
-    role TEXT DEFAULT 'user',
-    must_change_password INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now'))
-  )`);
-
-  await db.execute(`CREATE TABLE IF NOT EXISTS vehicles (
-    id TEXT PRIMARY KEY,
-    owner_id INTEGER NOT NULL,
-    make TEXT DEFAULT '', model TEXT DEFAULT '', trim TEXT DEFAULT '',
-    year INTEGER, vin TEXT DEFAULT '', mileage INTEGER,
-    purchase_price REAL DEFAULT 0, purchase_date TEXT,
-    seller TEXT DEFAULT '', location TEXT DEFAULT '',
-    condition_val TEXT DEFAULT 'Good', damage TEXT DEFAULT '', notes TEXT DEFAULT '',
-    title_status TEXT DEFAULT 'clean', repair_estimate REAL DEFAULT 0,
-    repair_cost REAL DEFAULT 0, parts_cost REAL DEFAULT 0, labor_cost REAL DEFAULT 0,
-    transport_cost REAL DEFAULT 0, auction_fees REAL DEFAULT 0,
-    dealer_fees REAL DEFAULT 0, taxes REAL DEFAULT 0,
-    registration_cost REAL DEFAULT 0, advertising_cost REAL DEFAULT 0,
-    detailing_cost REAL DEFAULT 0, misc_cost REAL DEFAULT 0, other_fees REAL DEFAULT 0,
-    photos TEXT DEFAULT '[]', status TEXT DEFAULT 'just_purchased',
+  // Create tables in a single batch for faster cold starts
+  await db.batch([
+    `CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      role TEXT DEFAULT 'user',
+      must_change_password INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS vehicles (
+      id TEXT PRIMARY KEY,
+      owner_id INTEGER NOT NULL,
+      make TEXT DEFAULT '', model TEXT DEFAULT '', trim TEXT DEFAULT '',
+      year INTEGER, vin TEXT DEFAULT '', mileage INTEGER,
+      purchase_price REAL DEFAULT 0, purchase_date TEXT,
+      seller TEXT DEFAULT '', location TEXT DEFAULT '',
+      condition_val TEXT DEFAULT 'Good', damage TEXT DEFAULT '', notes TEXT DEFAULT '',
+      title_status TEXT DEFAULT 'clean', repair_estimate REAL DEFAULT 0,
+      repair_cost REAL DEFAULT 0, parts_cost REAL DEFAULT 0, labor_cost REAL DEFAULT 0,
+      transport_cost REAL DEFAULT 0, auction_fees REAL DEFAULT 0,
+      dealer_fees REAL DEFAULT 0, taxes REAL DEFAULT 0,
+      registration_cost REAL DEFAULT 0, advertising_cost REAL DEFAULT 0,
+      detailing_cost REAL DEFAULT 0, misc_cost REAL DEFAULT 0, other_fees REAL DEFAULT 0,
+      photos TEXT DEFAULT '[]', status TEXT DEFAULT 'just_purchased',
     list_price REAL, list_date TEXT,
     sale_price REAL DEFAULT 0, sale_date TEXT,
     buyer TEXT DEFAULT '', selling_fees REAL DEFAULT 0,
     timeline TEXT DEFAULT '[]',
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
-  )`);
-
-  await db.execute(`CREATE TABLE IF NOT EXISTS expenses (
-    id TEXT PRIMARY KEY,
-    owner_id INTEGER NOT NULL,
-    vehicle_id TEXT,
-    category TEXT NOT NULL,
-    amount REAL DEFAULT 0, date TEXT,
-    description TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now'))
-  )`);
-
-  await db.execute(`CREATE TABLE IF NOT EXISTS watchlist (
-    id TEXT PRIMARY KEY,
-    owner_id INTEGER NOT NULL,
-    label TEXT DEFAULT '', url TEXT DEFAULT '',
-    asking_price REAL DEFAULT 0, estimated_value REAL DEFAULT 0,
-    estimated_profit REAL DEFAULT 0, seller TEXT DEFAULT '',
-    location TEXT DEFAULT '', status TEXT DEFAULT 'Watching',
-    date_added TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
-  )`);
-
-  await db.execute(`CREATE TABLE IF NOT EXISTS activity_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    username TEXT NOT NULL,
-    action TEXT NOT NULL,
-    entity_type TEXT, entity_id TEXT, entity_name TEXT,
-    details TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now'))
-  )`);
-
-  await db.execute(`CREATE TABLE IF NOT EXISTS business_expenses (
-    id TEXT PRIMARY KEY,
-    owner_id INTEGER NOT NULL,
-    category TEXT NOT NULL,
-    amount REAL DEFAULT 0,
-    date TEXT,
-    description TEXT DEFAULT '',
-    receipt TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now'))
-  )`);
+  )`,
+    `CREATE TABLE IF NOT EXISTS expenses (
+      id TEXT PRIMARY KEY,
+      owner_id INTEGER NOT NULL,
+      vehicle_id TEXT,
+      category TEXT NOT NULL,
+      amount REAL DEFAULT 0, date TEXT,
+      description TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS watchlist (
+      id TEXT PRIMARY KEY,
+      owner_id INTEGER NOT NULL,
+      label TEXT DEFAULT '', url TEXT DEFAULT '',
+      asking_price REAL DEFAULT 0, estimated_value REAL DEFAULT 0,
+      estimated_profit REAL DEFAULT 0, seller TEXT DEFAULT '',
+      location TEXT DEFAULT '', status TEXT DEFAULT 'Watching',
+      date_added TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS activity_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      username TEXT NOT NULL,
+      action TEXT NOT NULL,
+      entity_type TEXT, entity_id TEXT, entity_name TEXT,
+      details TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS business_expenses (
+      id TEXT PRIMARY KEY,
+      owner_id INTEGER NOT NULL,
+      category TEXT NOT NULL,
+      amount REAL DEFAULT 0,
+      date TEXT,
+      description TEXT DEFAULT '',
+      receipt TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    )`
+  ]);
 
   // Seed default accounts (password: 1234, must change on first login)
   const seedHash = bcrypt.hashSync('1234', 10);
