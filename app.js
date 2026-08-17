@@ -1369,8 +1369,7 @@ async function renderActivity(){
    MAIN RENDER + NAVIGATION
    ================================================================ */
 function render(){
-  console.log('[G5] render() called, currentView:', currentView);
-  const el=viewEl(); if(!el) { console.error('[G5] viewEl() returned null - #view not found'); return; }
+  const el=viewEl(); if(!el) return;
   try {
   const html = (() => {
   switch(currentView){
@@ -1574,8 +1573,6 @@ function renderChangePasswordScreen(){
 }
 
 function bootApp(){
-  console.log('[G5] bootApp called, currentUser:', S.currentUser);
-  // Clear auth overlay
   const authOverlay=$('#authOverlay'); if(authOverlay) authOverlay.innerHTML='';
 
   applyTheme(localStorage.getItem('g5_theme')||'light');
@@ -1629,9 +1626,8 @@ function bootApp(){
   });
 
   updateUserDisplay();
-  console.log('[G5] about to renderNav and render');
-  try { renderNav(); } catch(e) { console.error('[G5] renderNav error:', e); }
-  try { render(); console.log('[G5] render complete, #view length:', $('#view')?.innerHTML?.length); } catch(e) { console.error('[G5] render error:', e); }
+  renderNav();
+  render();
   renderNotifications();
 }
 
@@ -1652,25 +1648,21 @@ function updateUserDisplay(){
 
 /* ---- Boot ---- */
 function boot(){
-  // Show loading state immediately
   const view=$('#view');
-  if(view) view.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px"><div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--brand);border-radius:50%;animation:spin 1s linear infinite"></div><div style="color:var(--text-3);font-size:14px" id="loadMsg">Waking up server... this takes 30-60s on first load</div></div>';
+  if(view) view.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px"><div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--brand);border-radius:50%;animation:spin 1s linear infinite"></div><div style="color:var(--text-3);font-size:14px" id="loadMsg">Waking up server...</div></div>';
 
-  // Timeout warning
-  const loadTimer=setTimeout(()=>{ const m=$('#loadMsg'); if(m) m.textContent='Still loading... Render free tier cold starts can take up to 2 minutes'; },15000);
+  const loadTimer=setTimeout(()=>{ const m=$('#loadMsg'); if(m) m.textContent='Still loading... server may be waking up from sleep'; },15000);
 
   try {
     S.checkAuth().then(user=>{
       clearTimeout(loadTimer);
-      console.log('[G5] checkAuth resolved, user:', user?.username);
       if(user){
         if(S.mustChangePassword) renderChangePasswordScreen();
         else bootApp();
       } else renderAuthScreen();
-    }).catch((e)=>{ clearTimeout(loadTimer); console.error('[G5] checkAuth catch:', e); renderAuthScreen(); });
+    }).catch(()=>{ clearTimeout(loadTimer); renderAuthScreen(); });
   } catch(e) {
     clearTimeout(loadTimer);
-    console.error('Boot error:', e);
     renderAuthScreen();
   }
 }
