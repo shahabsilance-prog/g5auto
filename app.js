@@ -1616,10 +1616,16 @@ function bootApp(){
 
 function updateUserDisplay(){
   const user=S.currentUser;
+  const name=user?.displayName||user?.username||'Guest';
+  const initial=(name)[0].toUpperCase();
   const nameEl=$('#userName');
   const avatarEl=$('#userAvatar');
-  if(user&&nameEl) nameEl.textContent=user.displayName||user.username;
-  if(user&&avatarEl) avatarEl.textContent=(user.displayName||user.username||'?')[0].toUpperCase();
+  const topName=$('#topbarName');
+  const topAvatar=$('#topbarAvatar');
+  if(nameEl) nameEl.textContent=name;
+  if(avatarEl) avatarEl.textContent=initial;
+  if(topName) topName.textContent=name;
+  if(topAvatar) topAvatar.textContent=initial;
   $('#logoutBtn')?.addEventListener('click',()=>{ S.logout(); location.reload(); });
 }
 
