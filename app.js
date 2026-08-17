@@ -1370,6 +1370,7 @@ async function renderActivity(){
    ================================================================ */
 function render(){
   const el=viewEl(); if(!el) return;
+  try {
   switch(currentView){
     case 'dashboard': el.innerHTML=renderDashboard(); mountDashboard(); break;
     case 'inventory': el.innerHTML=renderInventory(); mountInventory(); break;
@@ -1379,8 +1380,12 @@ function render(){
     case 'analytics': el.innerHTML=renderAnalytics(); mountAnalytics(); break;
     case 'expenses': el.innerHTML=renderExpenses(); break;
     case 'business-expenses': el.innerHTML=renderBusinessExpenses(); break;
-    case 'activity': renderActivity().then(html=>{el.innerHTML=html;}); break;
+    case 'activity': renderActivity().then(html=>{el.innerHTML=html;}).catch(()=>{el.innerHTML='<div class="view-pad"><p>Error loading activity</p></div>';}); break;
     default: el.innerHTML=renderDashboard(); mountDashboard();
+  }
+  } catch(err) {
+    console.error('Render error:', err);
+    el.innerHTML='<div class="view-pad" style="padding:40px;text-align:center"><h2>Something went wrong</h2><p style="color:var(--text-3)">'+err.message+'</p><button class="btn primary mt-12" onclick="location.reload()">Reload</button></div>';
   }
   // scroll to top
   $('#viewScroll')?.scrollTo({top:0});
