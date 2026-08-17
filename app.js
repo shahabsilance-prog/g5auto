@@ -965,6 +965,63 @@ function renderExpenses(){
 }
 
 /* ================================================================
+   VIEW: BUSINESS EXPENSES
+   ================================================================ */
+const BE_CATEGORIES = [
+  {key:'food',label:'Food & Dining',color:'#f59e0b'},
+  {key:'gas',label:'Gas & Fuel',color:'#10b981'},
+  {key:'phone',label:'Phone & Internet',color:'#3b82f6'},
+  {key:'software',label:'Software & Tools',color:'#8b5cf6'},
+  {key:'office',label:'Office & Supplies',color:'#6366f1'},
+  {key:'insurance',label:'Insurance',color:'#ef4444'},
+  {key:'rent',label:'Rent & Storage',color:'#ec4899'},
+  {key:'legal',label:'Legal & Fees',color:'#f97316'},
+  {key:'marketing',label:'Marketing & Ads',color:'#14b8a6'},
+  {key:'meals',label:'Client Meals',color:'#f43f5e'},
+  {key:'travel',label:'Travel & Lodging',color:'#06b6d4'},
+  {key:'education',label:'Training & Education',color:'#a855f7'},
+  {key:'banking',label:'Bank & Finance Fees',color:'#64748b'},
+  {key:'utilities',label:'Utilities',color:'#0ea5e9'},
+  {key:'other',label:'Other',color:'#94a3b8'}
+];
+function renderBusinessExpenses(){
+  const exps=S.state.businessExpenses||[];
+  const catTotals={};
+  BE_CATEGORIES.forEach(c=>catTotals[c.key]=0);
+  exps.forEach(e=>{if(catTotals[e.category]!==undefined) catTotals[e.category]+=S.num(e.amount);});
+  const total=Object.values(catTotals).reduce((s,v)=>s+v,0);
+  const thisMonth=exps.filter(e=>{const d=new Date(e.date);const now=new Date();return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+  const monthTotal=thisMonth.reduce((s,e)=>s+S.num(e.amount),0);
+  const topCats=Object.entries(catTotals).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  return `
+  <div class="view-pad fade-in">
+    <div class="page-head"><div class="page-title">Business Expenses</div><div class="spacer"></div>
+      <button class="btn primary" onclick="App.modalAddBusinessExpense()"><svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Add Expense</button></div>
+    <div class="stat-strip mb-20 stagger">
+      <div class="cell"><div class="lbl">Total All-Time</div><div class="v tnum">${S.money(total)}</div></div>
+      <div class="cell"><div class="lbl">This Month</div><div class="v tnum">${S.money(monthTotal)}</div></div>
+      <div class="cell"><div class="lbl">Categories Used</div><div class="v tnum">${topCats.length}</div></div>
+      <div class="cell"><div class="lbl">Total Entries</div><div class="v tnum">${exps.length}</div></div>
+    </div>
+    ${topCats.length?`<div class="grid2 mb-20">
+      <div class="card"><div class="card-head"><h3>Spending by Category</h3></div><div class="card-body">
+        ${topCats.map(([k,v])=>{const cat=BE_CATEGORIES.find(c=>c.key===k);const pct=total>0?(v/total*100):0;return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;font-weight:700">${cat?.label||k}</span><span class="tnum" style="font-size:12px;font-weight:800">${S.money(v)}</span></div><div style="height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden"><div style="height:100%;width:${pct}%;background:${cat?.color||'var(--brand)'};border-radius:99px;transition:width .4s"></div></div></div>`;}).join('')}
+      </div></div>
+      <div class="card"><div class="card-head"><h3>Recent Entries</h3></div><div class="card-body">
+        ${exps.slice(0,5).map(e=>{const cat=BE_CATEGORIES.find(c=>c.key===e.category);return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)"><div style="width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:${cat?.color||'var(--brand)'}15;color:${cat?.color||'var(--brand)'}"><svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${cat?.label||e.category}</div><div style="font-size:11px;color:var(--text-3)">${e.date||''} ${e.description?'· '+e.description:''}</div></div><div class="tnum" style="font-size:13px;font-weight:800">${S.money(e.amount)}</div></div>`;}).join('')}
+      </div></div>
+    </div>`:''}
+    <div class="card"><div class="card-head"><h3>All Business Expenses</h3></div><div class="card-body scroll-x">
+      ${exps.length?`<table class="tbl"><thead><tr><th>Date</th><th>Category</th><th>Description</th><th class="num">Amount</th><th></th></tr></thead><tbody>
+      ${exps.map(e=>{const cat=BE_CATEGORIES.find(c=>c.key===e.category);
+        return`<tr><td class="mute">${e.date||''}</td><td><span class="badge neutral" style="background:${cat?.color||'var(--brand)'}15;color:${cat?.color||'var(--brand)'}">${cat?.label||e.category}</span></td><td>${e.description||''}</td><td class="num tnum">${S.money(e.amount)}</td><td><button class="btn danger sm" onclick="Store.deleteBusinessExpense('${e.id}').then(()=>App.refresh()).catch(err=>App.toast(err.message,'err'))">✕</button></td></tr>`;
+      }).join('')}
+      </tbody></table>`:'<div class="empty-state"><div class="ei"><svg viewBox="0 0 24 24" fill="none"><path d="M2 7h20v11a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 11a4 4 0 01-8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h4>No business expenses yet</h4><p>Track food, gas, software, insurance, and other operating costs.</p><button class="btn primary mt-12" onclick="App.modalAddBusinessExpense()">Add First Expense</button></div>'}
+    </div></div>
+  </div>`;
+}
+
+/* ================================================================
    MODALS
    ================================================================ */
 const COMMON_MODELS={
@@ -1181,6 +1238,57 @@ function modalAddExpense(preVehId){
   });
 }
 
+function modalAddBusinessExpense(){
+  openModal(`
+  <div class="modal">
+    <div class="modal-head"><div class="ic-lg"><svg viewBox="0 0 24 24" fill="none"><path d="M2 7h20v11a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 11a4 4 0 01-8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h3>Add Business Expense</h3><button class="modal-x" data-close-modal>✕</button></div>
+    <div class="modal-body">
+      <div class="grid-form">
+        <div class="field"><label>Category *</label><select class="inp" data-biz="category"><option value="">Select…</option>${BE_CATEGORIES.map(c=>`<option value="${c.key}">${c.label}</option>`).join('')}</select></div>
+        <div class="field"><label>Amount *</label><div class="money-wrap"><span class="pre">$</span><input class="inp money" type="number" data-biz="amount" placeholder="0"></div></div>
+        <div class="field"><label>Date</label><input class="inp" type="date" data-biz="date" value="${S.LOCAL_ISO()}"></div>
+        <div class="field col-2"><label>Description</label><input class="inp" data-biz="description" placeholder="What is this expense for?"></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" data-close-modal>Cancel</button><div class="spacer"></div><button class="btn primary" data-save-biz>Add Expense</button></div>
+  </div>`);
+  $$('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));
+  $('[data-save-biz]').addEventListener('click',async ()=>{
+    const data={};
+    $$('[data-biz]').forEach(el=>{data[el.dataset.biz]=el.type==='number'?+(el.value||0):el.value;});
+    if(!data.category||!data.amount){App.toast('Category and amount required','warn');return;}
+    try {
+      await S.addBusinessExpense(data);
+      closeModal(); renderNav(); render(); renderNotifications();
+      App.toast('Business expense added','ok');
+    } catch(err) {
+      App.toast('Error: '+err.message,'err');
+    }
+  });
+}
+
+function modalResetData(){
+  openModal(`
+  <div class="modal">
+    <div class="modal-head"><div class="ic-lg" style="background:var(--neg-soft);color:var(--neg)"><svg viewBox="0 0 24 24" fill="none"><path d="M12 9v4m0 4h.01M3.6 9h16.8c.56 0 .84 0 1.054-.109a1 1 0 00.437-.437C22 8.24 22 7.96 22 7.4V5.6c0-.56 0-.84-.109-1.054a1 1 0 00-.437-.437C21.24 4 20.96 4 20.4 4H3.6c-.56 0-.84 0-1.054.109a1 1 0 00-.437.437C2 4.76 2 5.04 2 5.6v1.8c0 .56 0 .84.109 1.054a1 1 0 00.437.437C2.76 9 3.04 9 3.6 9zM4 9l1.5 12.5c.136.95.204 1.425.448 1.776a2 2 0 00.874.804C7.074 24 7.549 24 8.5 24h7c.951 0 1.426 0 1.678-.12a2 2 0 00.874-.804c.244-.351.312-.826.448-1.776L20 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h3>Reset All Data</h3><button class="modal-x" data-close-modal>✕</button></div>
+    <div class="modal-body">
+      <div style="padding:16px;border-radius:12px;background:var(--neg-soft);color:var(--neg);font-size:13px;margin-bottom:16px;font-weight:600">⚠ This will permanently delete ALL your vehicles, expenses, watchlist items, business expenses, and activity history.</div>
+      <div class="field"><label>Enter your password to confirm</label><input class="inp" type="password" id="resetPassword" placeholder="Your password"></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" data-close-modal>Cancel</button><div class="spacer"></div><button class="btn danger" id="confirmReset">Delete Everything</button></div>
+  </div>`);
+  $$('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));
+  $('#confirmReset').addEventListener('click',async ()=>{
+    const pw=$('#resetPassword').value;
+    if(!pw){App.toast('Enter your password','warn');return;}
+    try {
+      await App.resetAll(pw);
+      closeModal();
+      App.toast('All data cleared','ok');
+    } catch(err) { App.toast(err.message,'err'); }
+  });
+}
+
 function modalAddWatch(){
   openModal(`
   <div class="modal">
@@ -1270,6 +1378,7 @@ function render(){
     case 'watchlist': el.innerHTML=renderWatchlist(); mountWatchlist(); break;
     case 'analytics': el.innerHTML=renderAnalytics(); mountAnalytics(); break;
     case 'expenses': el.innerHTML=renderExpenses(); break;
+    case 'business-expenses': el.innerHTML=renderBusinessExpenses(); break;
     case 'activity': renderActivity().then(html=>{el.innerHTML=html;}); break;
     default: el.innerHTML=renderDashboard(); mountDashboard();
   }
@@ -1353,6 +1462,8 @@ window.App={
   modalEditVehicle:id=>{const v=S.getVehicle(id);if(v)modalAddVehicle(v);},
   modalRecordSale,
   modalAddExpense,
+  modalAddBusinessExpense,
+  modalResetData,
   modalAddWatch,
   deleteVehicleWithUndo:async id=>{
     try {
@@ -1367,13 +1478,13 @@ window.App={
     }
   },
   undo,
-  resetAll:async()=>{
+  resetAll:async password=>{
     try {
-      await Store.resetAll();
+      await Store.resetAll(password);
       renderNav(); render(); renderNotifications();
       toast('All data cleared — starting fresh','ok');
     } catch(err) { toast(err.message,'err'); }
-  }
+  },
 };
 
 /* ---- Auth Screen ---- */

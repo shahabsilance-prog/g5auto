@@ -56,8 +56,12 @@
         <span class="lbl">Analytics</span>
       </button>
       <button class="nav-item" data-view="expenses" aria-label="Expenses">
-        <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M3 7h18M5 7v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7M8 11h8M8 15h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M3 7h18M5 7v10a1 1 0 0 1 1 1h12a1 1 0 0 1 1-1V7M8 11h8M8 15h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span class="lbl">Expenses</span>
+      </button>
+      <button class="nav-item" data-view="business-expenses" aria-label="Business Expenses">
+        <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M2 7h20v11a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 11a4 4 0 01-8 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="lbl">Biz Expenses</span>
       </button>
       <button class="nav-item" data-view="activity" aria-label="Activity Log">
         <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -70,6 +74,10 @@
         <div class="user-avatar" id="userAvatar">?</div>
         <div style="min-width:0"><div class="user-name" id="userName">Guest</div><div class="user-role">Dealer</div></div>
         <button id="logoutBtn" title="Log out">Logout</button>
+      </div>
+      <div class="mini-stat" style="cursor:pointer" onclick="App.modalResetData()" title="Reset all data">
+        <span style="color:var(--neg)">↺</span>
+        <div class="txt" style="color:var(--neg)">Reset Data</div>
       </div>
       <div class="mini-stat">
         <span class="sd s-listed"></span>

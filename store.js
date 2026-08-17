@@ -85,19 +85,21 @@ function findComps(v){ const make=v.make||''; const model=v.model||''; const yea
 function priceRecommendation(v){ const mv=estimateMarketValue(v); const costs=vehicleCosts(v); const totalCosts=costs.total; const targetMargin=Math.min(mv.mid*0.10,2200); const suggestedPurchase=Math.max(800,round(mv.mid-totalCosts-targetMargin,-2)); const minSale=round(mv.low,-2); const recommendedSale=round(mv.low+(mv.high-mv.low)*0.78,-2); const maxSale=round(mv.high,-2); const expectedNegotiated=round(recommendedSale*0.965,-2); const estProfit=expectedNegotiated-totalCosts-suggestedPurchase; const estProfitRangeLow=mv.low-totalCosts-suggestedPurchase; const estProfitRangeHigh=mv.high-totalCosts-suggestedPurchase; const marketplaces=marketplaceEstimates(v,mv); const comps=findComps(v); return {marketLow:mv.low,marketMid:mv.mid,marketHigh:mv.high,suggestedPurchase,minSale,recommendedSale,maxSale,expectedNegotiated,totalCosts,estProfit,estProfitRangeLow,estProfitRangeHigh,confidence:mv.confidence,segment:mv.segment,marketplaces,comps,titleStatus:mv.titleStatus,damageType:mv.damageType,isSalvage:mv.factors.isSalvage}; }
 
 // ---- State (loaded from API) ----
-let state = { vehicles:[], expenses:[], watchlist:[], currentUser:null };
+let state = { vehicles:[], expenses:[], watchlist:[], businessExpenses:[], currentUser:null };
 
 // ---- API-backed CRUD ----
 async function loadState(){
   try {
-    const [vehicles, expenses, watchlist] = await Promise.all([
+    const [vehicles, expenses, watchlist, businessExpenses] = await Promise.all([
       apiFetch('/api/vehicles'),
       apiFetch('/api/expenses'),
-      apiFetch('/api/watchlist')
+      apiFetch('/api/watchlist'),
+      apiFetch('/api/business-expenses')
     ]);
     state.vehicles = vehicles;
     state.expenses = expenses;
     state.watchlist = watchlist;
+    state.businessExpenses = businessExpenses;
   } catch(e) { console.error('loadState failed:', e); }
 }
 
@@ -138,7 +140,7 @@ function generateAlerts(){const a=[];state.vehicles.forEach(v=>{const d=daysInIn
 // ---- Auth ----
 async function login(username,password){ const r=await apiFetch('/api/auth/login',{method:'POST',body:JSON.stringify({username,password})}); authToken=r.token; currentUser=r.user; mustChangePassword=!!r.user.mustChangePassword; localStorage.setItem('g5_token',r.token); if(!mustChangePassword) await loadState(); return r.user; }
 async function signup(username,password,displayName){ const r=await apiFetch('/api/auth/signup',{method:'POST',body:JSON.stringify({username,password,displayName})}); authToken=r.token; currentUser=r.user; mustChangePassword=false; localStorage.setItem('g5_token',r.token); await loadState(); return r.user; }
-function logout(){ authToken=null; currentUser=null; mustChangePassword=false; localStorage.removeItem('g5_token'); state={vehicles:[],expenses:[],watchlist:[],currentUser:null}; }
+function logout(){ authToken=null; currentUser=null; mustChangePassword=false; localStorage.removeItem('g5_token'); state={vehicles:[],expenses:[],watchlist:[],businessExpenses:[],currentUser:null}; }
 async function checkAuth(){ if(!authToken) return null; try { currentUser=await apiFetch('/api/auth/me'); mustChangePassword=!!currentUser.mustChangePassword; if(!mustChangePassword) await loadState(); return currentUser; } catch(e){ logout(); return null; } }
 async function changePassword(newPassword){ await apiFetch('/api/auth/change-password',{method:'POST',body:JSON.stringify({newPassword})}); mustChangePassword=false; currentUser.mustChangePassword=false; await loadState(); }
 
@@ -159,10 +161,17 @@ async function addWatch(w){ const r=await apiFetch('/api/watchlist',{method:'POS
 async function updateWatch(id,patch){ const r=await apiFetch(`/api/watchlist/${id}`,{method:'PUT',body:JSON.stringify(patch)}); const idx=state.watchlist.findIndex(w=>w.id===id); if(idx>=0) state.watchlist[idx]=r; return r; }
 async function deleteWatch(id){ await apiFetch(`/api/watchlist/${id}`,{method:'DELETE'}); state.watchlist=state.watchlist.filter(w=>w.id!==id); }
 
+// ---- Business Expenses CRUD (API) ----
+async function addBusinessExpense(e){ const r=await apiFetch('/api/business-expenses',{method:'POST',body:JSON.stringify(e)}); state.businessExpenses.unshift(r); return r; }
+async function deleteBusinessExpense(id){ await apiFetch(`/api/business-expenses/${id}`,{method:'DELETE'}); state.businessExpenses=state.businessExpenses.filter(e=>e.id!==id); }
+
 // ---- Activity & Analytics (API) ----
 async function getActivity(limit){ return apiFetch(`/api/activity?limit=${limit||50}`); }
 async function getAllActivity(limit){ return apiFetch(`/api/activity/all?limit=${limit||100}`); }
 async function getAnalytics(){ return apiFetch('/api/analytics'); }
+
+// ---- Reset ----
+async function resetAll(password){ await apiFetch('/api/reset',{method:'POST',body:JSON.stringify({password})}); state.vehicles=[];state.expenses=[];state.watchlist=[];state.businessExpenses=[]; }
 
 // ---- Export API ----
 window.Store = {
@@ -195,11 +204,12 @@ window.Store = {
   // CRUD
   addVehicle,updateVehicle,deleteVehicle,getVehicle,sellVehicle,
   addExpense,deleteExpense,
+  addBusinessExpense,deleteBusinessExpense,
   addWatch,updateWatch,deleteWatch,
   uploadPhoto,
   // API
   getActivity,getAllActivity,getAnalytics,
   // reset
-  resetAll:async()=>{ state.vehicles=[];state.expenses=[];state.watchlist=[]; }
+  resetAll
 };
 })();

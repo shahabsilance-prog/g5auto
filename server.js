@@ -269,6 +269,51 @@ app.get('*', (req, res) => {
   if (!req.path.startsWith('/api/')) res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// ---- Business Expenses routes ----
+app.get('/api/business-expenses', auth, async (req, res) => {
+  res.json(await all('SELECT * FROM business_expenses WHERE owner_id = ? ORDER BY date DESC, created_at DESC', [req.user.id]));
+});
+
+app.post('/api/business-expenses', auth, async (req, res) => {
+  const id = 'be' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const { category, amount, date, description, receipt } = req.body;
+  await run('INSERT INTO business_expenses (id, owner_id, category, amount, date, description, receipt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [id, req.user.id, category, amount || 0, date || new Date().toISOString().slice(0,10), description || '', receipt || '']);
+  await logActivity(req.user.id, req.user.username, 'business_expense_added', 'business_expense', id, category, JSON.stringify({ amount, description }));
+  res.json(await get('SELECT * FROM business_expenses WHERE id = ?', [id]));
+});
+
+app.put('/api/business-expenses/:id', auth, async (req, res) => {
+  const e = await get('SELECT * FROM business_expenses WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+  if (!e) return res.status(404).json({ error: 'Not found' });
+  const { category, amount, date, description, receipt } = req.body;
+  await run('UPDATE business_expenses SET category=?, amount=?, date=?, description=?, receipt=? WHERE id=?',
+    [category || e.category, amount ?? e.amount, date || e.date, description ?? e.description, receipt ?? e.receipt, req.params.id]);
+  res.json(await get('SELECT * FROM business_expenses WHERE id = ?', [req.params.id]));
+});
+
+app.delete('/api/business-expenses/:id', auth, async (req, res) => {
+  const e = await get('SELECT * FROM business_expenses WHERE id = ? AND owner_id = ?', [req.params.id, req.user.id]);
+  if (!e) return res.status(404).json({ error: 'Not found' });
+  await run('DELETE FROM business_expenses WHERE id = ?', [req.params.id]);
+  await logActivity(req.user.id, req.user.username, 'business_expense_deleted', 'business_expense', req.params.id, e.category);
+  res.json({ ok: true });
+});
+
+// ---- Reset all data ----
+app.post('/api/reset', auth, async (req, res) => {
+  const { password } = req.body;
+  const user = await get('SELECT * FROM users WHERE id = ?', [req.user.id]);
+  if (!user || !bcrypt.compareSync(password, user.password_hash)) return res.status(401).json({ error: 'Wrong password' });
+  await run('DELETE FROM vehicles WHERE owner_id = ?', [req.user.id]);
+  await run('DELETE FROM expenses WHERE owner_id = ?', [req.user.id]);
+  await run('DELETE FROM watchlist WHERE owner_id = ?', [req.user.id]);
+  await run('DELETE FROM activity_log WHERE user_id = ?', [req.user.id]);
+  await run('DELETE FROM business_expenses WHERE owner_id = ?', [req.user.id]);
+  await logActivity(req.user.id, req.user.username, 'data_reset', 'user', req.user.id, req.user.username, 'All data cleared');
+  res.json({ ok: true });
+});
+
 // Debug: list accounts (remove in production)
 app.get('/api/debug/accounts', async (req, res) => {
   const users = await all('SELECT id, username, display_name, must_change_password FROM users');
@@ -400,6 +445,17 @@ function buildVehicleUpdate(id, data) {
     action TEXT NOT NULL,
     entity_type TEXT, entity_id TEXT, entity_name TEXT,
     details TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS business_expenses (
+    id TEXT PRIMARY KEY,
+    owner_id INTEGER NOT NULL,
+    category TEXT NOT NULL,
+    amount REAL DEFAULT 0,
+    date TEXT,
+    description TEXT DEFAULT '',
+    receipt TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
