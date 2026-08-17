@@ -1369,19 +1369,30 @@ async function renderActivity(){
    MAIN RENDER + NAVIGATION
    ================================================================ */
 function render(){
-  const el=viewEl(); if(!el) return;
+  const el=viewEl(); if(!el) { console.error('viewEl() returned null - #view not found'); return; }
   try {
+  const html = (() => {
   switch(currentView){
-    case 'dashboard': el.innerHTML=renderDashboard(); mountDashboard(); break;
-    case 'inventory': el.innerHTML=renderInventory(); mountInventory(); break;
-    case 'vehicle': el.innerHTML=renderVehicle(currentParam); mountVehicle(); break;
-    case 'search': el.innerHTML=renderSearch(); mountSearch(); break;
-    case 'watchlist': el.innerHTML=renderWatchlist(); mountWatchlist(); break;
-    case 'analytics': el.innerHTML=renderAnalytics(); mountAnalytics(); break;
-    case 'expenses': el.innerHTML=renderExpenses(); break;
-    case 'business-expenses': el.innerHTML=renderBusinessExpenses(); break;
-    case 'activity': renderActivity().then(html=>{el.innerHTML=html;}).catch(()=>{el.innerHTML='<div class="view-pad"><p>Error loading activity</p></div>';}); break;
-    default: el.innerHTML=renderDashboard(); mountDashboard();
+    case 'dashboard': return renderDashboard();
+    case 'inventory': return renderInventory();
+    case 'vehicle': return renderVehicle(currentParam);
+    case 'search': return renderSearch();
+    case 'watchlist': return renderWatchlist();
+    case 'analytics': return renderAnalytics();
+    case 'expenses': return renderExpenses();
+    case 'business-expenses': return renderBusinessExpenses();
+    case 'activity': renderActivity().then(html=>{el.innerHTML=html;}).catch(()=>{el.innerHTML='<div class="view-pad"><p>Error loading activity</p></div>';}); return null;
+    default: return renderDashboard();
+  }
+  })();
+  if(html!==null) el.innerHTML=html;
+  switch(currentView){
+    case 'dashboard': mountDashboard(); break;
+    case 'inventory': mountInventory(); break;
+    case 'vehicle': mountVehicle(); break;
+    case 'search': mountSearch(); break;
+    case 'watchlist': mountWatchlist(); break;
+    case 'analytics': mountAnalytics(); break;
   }
   } catch(err) {
     console.error('Render error:', err);
@@ -1392,6 +1403,7 @@ function render(){
 }
 
 function renderNav(){
+  try {
   $$('.nav-item').forEach(n=>{n.classList.toggle('active',n.dataset.view===currentView);});
   $$('.b-item').forEach(n=>{n.classList.toggle('active',n.dataset.view===currentView);});
   // counts
@@ -1400,6 +1412,7 @@ function renderNav(){
   // mini stats
   const mi=$('#miniInv'); if(mi) mi.textContent=S.money(S.business.inventorySnapshot().invested);
   const mp=$('#miniProfit'); if(mp) mp.textContent=S.money(S.business.lifetimeMetrics().profit);
+  } catch(err) { console.error('renderNav error:', err); }
 }
 
 /* ---- Notifications ---- */
