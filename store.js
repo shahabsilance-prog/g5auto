@@ -123,7 +123,7 @@ function startSync(onSync) {
     if (!authToken) return;
     await loadState();
     if (_onSync) _onSync();
-  }, 30000);
+  }, 5000);
 }
 function stopSync() { if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; } }
 
