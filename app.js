@@ -1071,7 +1071,7 @@ function modalAddVehicle(editV){
   const vehicleModels=v.make&&COMMON_MODELS[v.make]?COMMON_MODELS[v.make]:[];
   const fields=[
     {k:'year',l:'Year',type:'number',ph:'2020',col:''},
-    {k:'make',l:'Make',type:'select',opts:S.MAKES,col:''},
+    {k:'make',l:'Make',type:'select',opts:['',...S.MAKES],col:''},
     {k:'model',l:'Model',type:'select',opts:vehicleModels.length?vehicleModels:['(Select make first)'],col:''},
     {k:'trim',l:'Trim',type:'text',ph:'Sport, XLT, SE, etc.',col:''},
     {k:'vin',l:'VIN',type:'text',ph:'1HGBH41JXMN109186',col:'col-2'},
@@ -1101,7 +1101,7 @@ function modalAddVehicle(editV){
     <div class="modal-body" style="max-height:60vh">
       <h4 style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--text-2)">Vehicle Information</h4>
       <div class="grid-form mb-20">
-        ${fields.map(f=>`<div class="field ${f.col}"><label>${f.l}</label>${f.type==='select'?`<select class="inp" data-veh-f="${f.k}" data-veh-select="${f.k}">${f.opts.map(o=>`<option value="${o}"${v[f.k]===o?' selected':''}>${o}</option>`).join('')}</select>`:f.type==='textarea'?`<textarea class="inp" data-veh-f="${f.k}" placeholder="${f.ph||''}">${v[f.k]||''}</textarea>`:f.type==='date'?`<input class="inp" type="date" data-veh-f="${f.k}" value="${v[f.k]||''}">`:f.type==='tags'?`<div class="tags-input-wrap" data-tags-field="${f.k}"><div class="tags-display">${(v[f.k]||'').split(',').map(t=>t.trim()).filter(Boolean).map(t=>`<span class="tag-chip">${S.esc(t)}<button class="tag-remove" data-tag-val="${S.esc(t)}">&times;</button></span>`).join('')}</div><input class="inp" type="text" data-tags-input="${f.k}" placeholder="Type and press Enter to add…"></div>`:f.money?`<div class="money-wrap"><span class="pre">$</span><input class="inp money" type="number" data-veh-f="${f.k}" value="${v[f.k]||''}" placeholder="${f.ph||''}"></div>`:`<input class="inp" type="${f.type||'text'}" data-veh-f="${f.k}" value="${v[f.k]||''}" placeholder="${f.ph||''}">`}</div>`).join('')}
+        ${fields.map(f=>`<div class="field ${f.col}"><label>${f.l}</label>${f.type==='select'?`<select class="inp" data-veh-f="${f.k}" data-veh-select="${f.k}">${f.opts.map(o=>`<option value="${o}"${v[f.k]===o||(v[f.k]===''&&o==='')?' selected':''}>${o||(f.k==='make'?'Select Make':f.l)}</option>`).join('')}</select>`:f.type==='textarea'?`<textarea class="inp" data-veh-f="${f.k}" placeholder="${f.ph||''}">${v[f.k]||''}</textarea>`:f.type==='date'?`<input class="inp" type="date" data-veh-f="${f.k}" value="${v[f.k]||''}">`:f.type==='tags'?`<div class="tags-input-wrap" data-tags-field="${f.k}"><div class="tags-display">${(v[f.k]||'').split(',').map(t=>t.trim()).filter(Boolean).map(t=>`<span class="tag-chip">${S.esc(t)}<button class="tag-remove" data-tag-val="${S.esc(t)}">&times;</button></span>`).join('')}</div><input class="inp" type="text" data-tags-input="${f.k}" placeholder="Type and press Enter to add…"></div>`:f.money?`<div class="money-wrap"><span class="pre">$</span><input class="inp money" type="number" data-veh-f="${f.k}" value="${v[f.k]||''}" placeholder="${f.ph||''}"></div>`:`<input class="inp" type="${f.type||'text'}" data-veh-f="${f.k}" value="${v[f.k]||''}" placeholder="${f.ph||''}">`}</div>`).join('')}
       </div>
       <h4 style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--text-2)">Costs & Fees</h4>
       <div class="grid-form">
@@ -1176,7 +1176,7 @@ function modalAddVehicle(editV){
       if(modelSelect&&COMMON_MODELS[make]){
         modelSelect.innerHTML=COMMON_MODELS[make].map(m=>`<option value="${m}">${m}</option>`).join('');
       }else if(modelSelect){
-        modelSelect.innerHTML='<option value="">(Type model)</option>';
+        modelSelect.innerHTML='<option value="">Select Make first</option>';
       }
     });
   }
