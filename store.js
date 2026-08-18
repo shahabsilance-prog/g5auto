@@ -123,11 +123,11 @@ function startSync(onSync) {
   _lastStateHash = JSON.stringify({ v: state.vehicles.length, e: state.expenses.length, w: state.watchlist.length, b: state.businessExpenses.length });
   _syncInterval = setInterval(async () => {
     if (!authToken) return;
-    const prev = JSON.stringify({ v: state.vehicles.length, e: state.expenses.length, w: state.watchlist.length, b: state.businessExpenses.length });
+    const prev = JSON.stringify({ v: state.vehicles.length, e: state.expenses.length, w: state.watchlist.length, b: state.businessExpenses.length, vtime: state.vehicles.map(x=>x.updated_at||x.created_at).join(','), btime: state.businessExpenses.map(x=>x.created_at).join(',') });
     await loadState();
-    const next = JSON.stringify({ v: state.vehicles.length, e: state.expenses.length, w: state.watchlist.length, b: state.businessExpenses.length });
+    const next = JSON.stringify({ v: state.vehicles.length, e: state.expenses.length, w: state.watchlist.length, b: state.businessExpenses.length, vtime: state.vehicles.map(x=>x.updated_at||x.created_at).join(','), btime: state.businessExpenses.map(x=>x.created_at).join(',') });
     if (prev !== next && _onSync) _onSync();
-  }, 15000);
+  }, 10000);
 }
 function stopSync() { if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; } }
 
